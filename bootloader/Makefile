@@ -33,7 +33,15 @@ uart:
 	make -C ${LIB}/uart
 
 # WOLFSSL CONFIGURATION
-TOOLCHAIN = /usr/bin/arm-none-eabi-
+
+# Code to conditionally set toolchain based on OS
+# Detect the operating system
+OS := $(shell uname)
+ifeq ($(OS), Darwin)
+    TOOLCHAIN = /opt/homebrew/bin/arm-none-eabi-
+else
+    TOOLCHAIN = /usr/bin/arm-none-eabi-
+endif
 USER_SETTINGS_DIR = $(abspath ${INC})
 ARCHFLAGS = "-mcpu=cortex-m4 -mthumb -mabi=aapcs -mfpu=fpv4-sp-d16 -mfloat-abi=hard"
 NO_EXAMPLES = true

@@ -26,17 +26,21 @@ import argparse
 from pwn import *
 import time
 import serial
+import platform
 
 from util import *
 
-ser = serial.Serial("/dev/ttyACM0", 115200)
+if platform.system() == 'Darwin':
+    ser = serial.Serial("/dev/tty.usbmodem0E23AD551", 115200)
+else:
+    ser = serial.Serial("/dev/ttyACM0", 115200)
 
 RESP_OK = b"\x00"
 FRAME_SIZE = 256
 
 
 def send_metadata(ser, metadata, debug=False):
-    assert(len(metadata) == 4)
+    assert (len(metadata) == 4)
     version = u16(metadata[:2], endian='little')
     size = u16(metadata[2:], endian='little')
     print(f"Version: {version}\nSize: {size} bytes\n")
@@ -58,7 +62,8 @@ def send_metadata(ser, metadata, debug=False):
     # Wait for an OK from the bootloader.
     resp = ser.read(1)
     if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
+        raise RuntimeError(
+            "ERROR: Bootloader responded with {}".format(repr(resp)))
 
 
 def send_frame(ser, frame, debug=False):
@@ -72,7 +77,8 @@ def send_frame(ser, frame, debug=False):
     time.sleep(0.1)
 
     if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
+        raise RuntimeError(
+            "ERROR: Bootloader responded with {}".format(repr(resp)))
 
     if debug:
         print("Resp: {}".format(ord(resp)))
@@ -89,7 +95,7 @@ def update(ser, infile, debug):
     send_metadata(ser, metadata, debug=debug)
 
     for idx, frame_start in enumerate(range(0, len(firmware), FRAME_SIZE)):
-        data = firmware[frame_start : frame_start + FRAME_SIZE]
+        data = firmware[frame_start: frame_start + FRAME_SIZE]
 
         # Construct frame.
         frame = p16(len(data), endian='big') + data
@@ -103,7 +109,8 @@ def update(ser, infile, debug):
     ser.write(p16(0x0000, endian='big'))
     resp = ser.read(1)  # Wait for an OK from the bootloader
     if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded to zero length frame with {}".format(repr(resp)))
+        raise RuntimeError(
+            "ERROR: Bootloader responded to zero length frame with {}".format(repr(resp)))
     print(f"Wrote zero length frame (2 bytes)")
 
     return ser
@@ -112,9 +119,12 @@ def update(ser, infile, debug):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
 
-    parser.add_argument("--port", help="Does nothing, included to adhere to command examples in rule doc", required=False)
-    parser.add_argument("--firmware", help="Path to firmware image to load.", required=False)
-    parser.add_argument("--debug", help="Enable debugging messages.", action="store_true")
+    parser.add_argument(
+        "--port", help="Does nothing, included to adhere to command examples in rule doc", required=False)
+    parser.add_argument(
+        "--firmware", help="Path to firmware image to load.", required=False)
+    parser.add_argument(
+        "--debug", help="Enable debugging messages.", action="store_true")
     args = parser.parse_args()
 
     update(ser=ser, infile=args.firmware, debug=args.debug)
