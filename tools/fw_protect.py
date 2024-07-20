@@ -32,7 +32,7 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
         p16(len(firmware), endian='little')
 
     # Combine parts into single firmware blob
-    firmware_blob = metadata + firmware + message.encode() + b"\x00"
+    firmware_blob = metadata + firmware + message.encode('utf-8') + b"\x00"
 
     ed25519_private_key = base64.b64decode(secrets["ed25519_private_key"])
     ed25519_private_key = ECC.import_key(ed25519_private_key)
@@ -62,7 +62,7 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Firmware Update Tool")
+    parser = argparse.ArgumentParser(description="Firmware Protection Tool")
     parser.add_argument(
         "--infile", help="Path to the firmware image to protect.", required=True)
     parser.add_argument(
