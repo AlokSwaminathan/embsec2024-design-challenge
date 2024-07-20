@@ -6,20 +6,23 @@
 """
 Firmware Updater Tool
 
-A frame consists of two sections:
+A frame consists of three sections:
 1. Two bytes for the length of the data section
 2. A data section of length defined in the length section
+3. A two byte CRC16 checksum of the data section
 
-[ 0x02 ]  [ variable ]
---------------------
-| Length | Data... |
---------------------
+[ 0x02 ]  [ variable ] [crc16]
+-------------------------------
+| Length | Data... | Checksum |
+--------------------------------
 
 In our case, the data is from one line of the Intel Hex formated .hex file
 
 We write a frame to the bootloader, then wait for it to respond with an
 OK message so we can write the next frame. The OK message in this case is
-just a zero
+just a 0
+If the bootloader responds with a 1, then we resend the message
+If the bootloader responds with a 2, then we are done writing the firmware
 """
 
 import argparse
@@ -36,6 +39,8 @@ else:
     ser = serial.Serial("/dev/ttyACM0", 115200)
 
 RESP_OK = b"\x00"
+RESP_RESEND = b"\x01"
+RESP_DONE = b"\x02"
 FRAME_SIZE = 256
 
 
