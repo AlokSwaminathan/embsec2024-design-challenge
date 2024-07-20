@@ -68,11 +68,11 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str,secre
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
-    parser.add_argument("--infile", help="Path to the firmware image to protect.", required=False,default="firmware.bin")
-    parser.add_argument("--outfile", help="Filename for the output firmware.", required=False,default="protected_firmware.bin")
+    parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
+    parser.add_argument("--outfile", help="Filename for the output firmware.", required=True)
     parser.add_argument("--version", help="Version number of this firmware.", required=True)
     parser.add_argument("--message", help="Release message for this firmware.", required=True)
-    parser.add_argument("--secrets", help="Path to the secrets json file.", required=False, default="secrets_build.bin")
+    parser.add_argument("--secrets", help="Path to the secrets json file.", required=True)
     args = parser.parse_args()
 
     protect_firmware(infile=args.infile, outfile=args.outfile, version=int(args.version), message=args.message,secret_file=args.secrets)
