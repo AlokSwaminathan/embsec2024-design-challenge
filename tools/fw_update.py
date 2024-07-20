@@ -27,10 +27,11 @@ If the bootloader responds with a 3, there has been an error and we should stop 
 """
 
 import argparse
-from pwn import *
+from pwnlib.util.packing import p32,p16
 import time
 import serial
 import platform
+from zlib import crc32
 
 from util import *
 
@@ -47,13 +48,20 @@ FRAME_SIZE = 256
 
 
 def send_frame(ser, frame, debug=False):
-    ser.write(frame)  # Write the frame...
+    ser.write(p16(len(frame), endian='little'))  # Write the frame length
+    
+    ser.write(frame)  # Write the frame data
+    
+    checksum = p32(crc32(frame),endian='little')
+    
+    ser.write(checksum)  # Write the frame checksum
 
     if debug:
         print_hex(frame)
 
     resp = ser.read(1)  # Wait for an OK from the bootloader
 
+    # Tenatively keep this line, idk why its here though
     time.sleep(0.1)
 
     if debug:
@@ -71,26 +79,26 @@ def send_frame(ser, frame, debug=False):
 def update(ser, infile, debug):
     # Open serial port. Set baudrate to 115200. Set timeout to 2 seconds.
     with open(infile, "rb") as fp:
-
-    for idx, frame_start in enumerate(range(0, len(firmware), FRAME_SIZE)):
-        data = firmware[frame_start: frame_start + FRAME_SIZE]
-
-        # Construct frame.
-        frame = p16(len(data), endian='big') + data
-
-        send_frame(ser, frame, debug=debug)
-        print(f"Wrote frame {idx} ({len(frame)} bytes)")
         firmware = fp.read()
+
+    # Send firmware in frames
+    num_frames = len(firmware) // FRAME_SIZE
+    num_frames -= 1 if len(firmware) % FRAME_SIZE == 0 else 0
+    for i in range(0, len(firmware), FRAME_SIZE):
+        frame = firmware[i:i+FRAME_SIZE]
+        send_frame(ser, frame,debug=debug)
+        print(f"Sent frame {i//FRAME_SIZE} of {len(firmware)//FRAME_SIZE}")
+    
 
     print("Done writing firmware.")
 
     # Send a zero length payload to tell the bootlader to finish writing it's page.
-    ser.write(p16(0x0000, endian='big'))
-    resp = ser.read(1)  # Wait for an OK from the bootloader
-    if resp != RESP_OK:
+    ser.write(p16(0x0000, endian='little'))
+    resp = ser.read(1)  # Wait for a DONE from the bootloader
+    if resp != RESP_DONE:
         raise RuntimeError(
             "ERROR: Bootloader responded to zero length frame with {}".format(repr(resp)))
-    print(f"Wrote zero length frame (2 bytes)")
+    print(f"Wrote zero length frame (2 bytes) and finished writing firmware")
 
     return ser
 
