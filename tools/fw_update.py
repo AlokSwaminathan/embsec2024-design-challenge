@@ -7,11 +7,11 @@
 Firmware Updater Tool
 
 A frame consists of three sections:
-1. Two bytes for the length of the data section
+1. Two bytes for the length of the data section (little endian)
 2. A data section of length defined in the length section
 3. A two byte CRC16 checksum of the data section
 
-[ 0x02 ]  [ variable ] [crc16]
+[ 0x02 ]  [ variable ] [crc32]
 -------------------------------
 | Length | Data... | Checksum |
 --------------------------------
@@ -23,6 +23,7 @@ OK message so we can write the next frame. The OK message in this case is
 just a 0
 If the bootloader responds with a 1, then we resend the message
 If the bootloader responds with a 2, then we are done writing the firmware
+If the bootloader responds with a 3, there has been an error and we should stop writing firmware
 """
 
 import argparse
@@ -41,6 +42,7 @@ else:
 RESP_OK = b"\x00"
 RESP_RESEND = b"\x01"
 RESP_DONE = b"\x02"
+RESP_ERROR = b"\x03"
 FRAME_SIZE = 256
 
 
@@ -81,12 +83,16 @@ def send_frame(ser, frame, debug=False):
 
     time.sleep(0.1)
 
-    if resp != RESP_OK:
-        raise RuntimeError(
-            "ERROR: Bootloader responded with {}".format(repr(resp)))
-
     if debug:
         print("Resp: {}".format(ord(resp)))
+    
+    if resp == RESP_ERROR:
+        raise RuntimeError(
+            "ERROR: Bootloader responded with {}".format(repr(resp)))
+    elif resp == RESP_RESEND:
+        if debug:
+            print("Resending frame")
+        send_frame(ser, frame, debug=debug)
 
 
 def update(ser, infile, debug):
