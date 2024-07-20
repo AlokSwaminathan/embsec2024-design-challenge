@@ -70,7 +70,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
     parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
     parser.add_argument("--outfile", help="Filename for the output firmware.", required=True)
-    parser.add_argument("--version", help="Version number of this firmware.", required=True)
+    parser.add_argument("--version", help="Version number of this firmware.", required=True,type=int)
     parser.add_argument("--message", help="Release message for this firmware.", required=True)
     parser.add_argument("--secrets", help="Path to the secrets json file.", required=True)
     args = parser.parse_args()
