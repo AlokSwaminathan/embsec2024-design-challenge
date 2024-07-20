@@ -15,16 +15,7 @@ from Crypto.Cipher import AES
 from Crypto.PublicKey import ECC
 from Crypto.Signature import eddsa
 from Crypto.Hash import HMAC, SHA512
-
-
-def get_secrets(data: bytes, order: list[int]) -> list[bytes]:
-    secrets = []
-    cur = 0
-    if sum(order) != len(data):
-        raise ValueError("Order does not match data length")
-    for i in order:
-        secrets.append(data[cur:cur+i])
-    return secrets
+import base64
         
 
 
@@ -34,8 +25,8 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str,secre
         firmware = fp.read()
     
     # Read secrets as a json file
-    with open(secrets, mode="rb") as fp:
-        ed25519_private_key, hmac_key, aes_key  = get_secrets(fp.read(),[32,32,32])
+    with open(secret_file, mode="r") as fp:
+        secrets = json.load(fp)
 
     # Pack version and size into two little-endian shorts
     metadata = p16(version, endian='little') + p16(len(firmware), endian='little')  
@@ -43,17 +34,20 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str,secre
     # Combine parts into single firmware blob
     firmware_blob = metadata + firmware + message.encode() + b"\x00"
     
+    ed25519_private_key = base64.b64decode(secrets["ed25519_private_key"])
     ed25519_private_key = ECC.import_key(ed25519_private_key)
     signer = eddsa.new(ed25519_private_key,mode='rfc8032')
     signature = signer.sign(firmware_blob)
     signed_firmware_blob = firmware_blob + signature
     
+    hmac_key = base64.b64decode(secrets["hmac_key"])
     hmac = HMAC.new(hmac_key, digestmod=SHA512)
     hmac.update(signed_firmware_blob)
     hmac_digest = hmac.digest()
     
     signed_hashed_firmware_blob = signed_firmware_blob + hmac_digest
     
+    aes_key = base64.b64decode(secrets["aes_key"])
     aes_nonce = os.urandom(16)
     
     aes = AES.new(aes_key, AES.MODE_GCM, nonce=aes_nonce)
