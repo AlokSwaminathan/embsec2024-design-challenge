@@ -17,6 +17,17 @@ from Crypto.Signature import eddsa
 from Crypto.Hash import HMAC, SHA512
 
 
+def get_secrets(data: bytes, order: list[int]) -> list[bytes]:
+    secrets = []
+    cur = 0
+    if sum(order) != len(data):
+        raise ValueError("Order does not match data length")
+    for i in order:
+        secrets.append(data[cur:cur+i])
+    return secrets
+        
+
+
 def protect_firmware(infile: str, outfile: str, version: int, message: str,secret_file: str):
     # Load firmware binary from infile
     with open(infile, mode="rb") as fp:
@@ -24,7 +35,7 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str,secre
     
     # Read secrets as a json file
     with open(secrets, mode="rb") as fp:
-        secrets = json.load(fp)
+        ed25519_private_key, hmac_key, aes_key  = get_secrets(fp.read(),[32,32,32])
 
     # Pack version and size into two little-endian shorts
     metadata = p16(version, endian='little') + p16(len(firmware), endian='little')  
@@ -32,19 +43,17 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str,secre
     # Combine parts into single firmware blob
     firmware_blob = metadata + firmware + message.encode() + b"\x00"
     
-    ed25519_private_key = ECC.import_key(secrets["ed25519_private_key"].encode('ascii'))
+    ed25519_private_key = ECC.import_key(ed25519_private_key)
     signer = eddsa.new(ed25519_private_key,mode='rfc8032')
     signature = signer.sign(firmware_blob)
     signed_firmware_blob = firmware_blob + signature
     
-    hmac_key = secrets["hmac_key"]
     hmac = HMAC.new(hmac_key, digestmod=SHA512)
     hmac.update(signed_firmware_blob)
     hmac_digest = hmac.digest()
     
     signed_hashed_firmware_blob = signed_firmware_blob + hmac_digest
     
-    aes_key = secrets["aes_key"]
     aes_nonce = os.urandom(16)
     
     aes = AES.new(aes_key, AES.MODE_GCM, nonce=aes_nonce)
@@ -63,7 +72,7 @@ if __name__ == "__main__":
     parser.add_argument("--outfile", help="Filename for the output firmware.", required=False,default="protected_firmware.bin")
     parser.add_argument("--version", help="Version number of this firmware.", required=True)
     parser.add_argument("--message", help="Release message for this firmware.", required=True)
-    parser.add_argument("--secrets", help="Path to the secrets json file.", required=False, default="secrets_build.json")
+    parser.add_argument("--secrets", help="Path to the secrets json file.", required=False, default="secrets_build.bin")
     args = parser.parse_args()
 
     protect_firmware(infile=args.infile, outfile=args.outfile, version=int(args.version), message=args.message,secret_file=args.secrets)
