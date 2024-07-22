@@ -27,6 +27,7 @@ If the bootloader responds with a 3, there has been an error and we should stop 
 """
 
 import argparse
+from pwn import *
 import time
 import serial
 import platform
@@ -55,7 +56,7 @@ def send_frame(ser, frame, debug=False):
     
     ser.write(checksum)  # Write the frame checksum
 
-    if debug:
+    if debug: #remember to remove later ❗❗❗❗❗❗
         print_hex(frame)
 
     resp = ser.read(1)  # Wait for an OK from the bootloader
