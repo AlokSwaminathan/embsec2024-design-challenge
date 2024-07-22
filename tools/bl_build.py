@@ -20,6 +20,11 @@ import base64
 REPO_ROOT = pathlib.Path(__file__).parent.parent.absolute()
 BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
 
+def padded_char_array(str):
+    char_array = "{" + ", ".join([f"'{c}'" for c in str])
+    padding = ['\\0' for _ in range(0, 4 - (len(str) % 4))] if len(str) % 4 != 0 else []
+    return char_array + (", " + ", ".join(padding) + "}") if padding else char_array + "}"
+
 
 def make_bootloader(ed25519_pub_key, aes_key, hmac_key) -> bool:
     # Change to bootloader directory to build the bootloader from source
@@ -27,20 +32,20 @@ def make_bootloader(ed25519_pub_key, aes_key, hmac_key) -> bool:
     
     # Write the keys to a secret header file
     with open("inc/secrets.h", "w") as f:
-        f.write("#define ED25519_PUBLIC_KEY \"" + ed25519_pub_key + "\"\n")
-        f.write("#define AES_KEY \"" + aes_key + "\"\n")
-        f.write("#define HMAC_KEY \"" + hmac_key + "\"\n")
+        f.write("#define ED25519_PUBLIC_KEY " + padded_char_array(ed25519_pub_key) + "\n")
+        f.write("#define AES_KEY " + padded_char_array(aes_key) + "\n")
+        f.write("#define HMAC_KEY " + padded_char_array(hmac_key) + "\n")
         
     # Clean current directry to build bootloader 
     subprocess.call("make clean", shell=True)
     status = subprocess.call("make")
 
-    # Reset the secrets header file
-    with open("inc/secrets.h", "w") as f:
-        f.write("// No secrets for you :)\n")
-        f.write("#define ED25519_PUBLIC_KEY \"\"\n")
-        f.write("#define AES_KEY \"\"\n")
-        f.write("#define HMAC_KEY \"\"\n")
+    # # Reset the secrets header file
+    # with open("inc/secrets.h", "w") as f:
+    #     f.write("// No secrets for you :)\n")
+    #     f.write("#define ED25519_PUBLIC_KEY \"\"\n")
+    #     f.write("#define AES_KEY \"\"\n")
+    #     f.write("#define HMAC_KEY \"\"\n")
 
     # Return True if make returned 0, otherwise return False.
     return status == 0
