@@ -8,7 +8,6 @@ Firmware Bundle-and-Protect Tool
 
 """
 import argparse
-from pwnlib.util.packing import p16
 import json
 import os
 from Crypto.Cipher import AES
@@ -41,22 +40,19 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
     signature = signer.sign(firmware_blob)
     signed_firmware_blob = firmware_blob + signature
 
-    
+    #Extract and verify the HMAC
     hmac_key = base64.b64decode(secrets["hmac_key"])
     hmac = HMAC.new(hmac_key, digestmod=SHA512)
     hmac.update(signed_firmware_blob)
     hmac_digest = hmac.digest()
-
     signed_hashed_firmware_blob = signed_firmware_blob + hmac_digest
 
-    #
+    #Decode the base64 encoded AES key from the secrets dictionary
     aes_key = base64.b64decode(secrets["aes_key"])
     aes_nonce = os.urandom(16)
-
     aes = AES.new(aes_key, AES.MODE_GCM, nonce=aes_nonce)
-    aes_ciphertext, aes_tag = aes.encrypt_and_digest(
-        signed_hashed_firmware_blob)
-
+    # Encrypt the signed and hashed firmware blob
+    aes_ciphertext, aes_tag = aes.encrypt_and_digest(signed_hashed_firmware_blob)
     final_firmware_blob = aes_nonce + aes_ciphertext + aes_tag
 
     # Write firmware blob to outfile
