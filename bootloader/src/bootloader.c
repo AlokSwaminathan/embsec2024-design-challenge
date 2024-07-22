@@ -2,6 +2,7 @@
 // Approved for public release. Distribution unlimited 23-02181-25.
 
 #include "bootloader.h"
+#include "secrets.h"
 
 // Hardware Imports
 #include "inc/hw_memmap.h"    // Peripheral Base Addresses
