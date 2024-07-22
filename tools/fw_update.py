@@ -11,9 +11,9 @@ A frame consists of three sections:
 2. A data section of length defined in the length section
 3. A two byte CRC16 checksum of the data section
 
-[ 0x02 ]  [ variable ] [crc32]
--------------------------------
-| Length | Data... | Checksum |
+[ 0x02 ] [ variable ] [0x04]
+--------------------------------
+| Length | Data...  | Checksum |
 --------------------------------
 
 In our case, the data is from one line of the Intel Hex formated .hex file
