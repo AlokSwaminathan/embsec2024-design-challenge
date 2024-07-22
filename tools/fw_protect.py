@@ -51,8 +51,8 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
     protected_firmware = aes_iv + ct_bytes
     
     # Write JSON result to outfile
-    with open(outfile, mode="wb+") as outfile:
-        outfile.write(protected_firmware)
+    with open(outfile, mode="wb+") as protected_binary:
+        protected_binary.write(protected_firmware)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Protection Tool")
