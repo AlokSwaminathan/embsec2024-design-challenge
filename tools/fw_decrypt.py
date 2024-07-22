@@ -18,18 +18,22 @@ import base64
 
 
 def decrypt_firmware(infile: str, outfile: str, secret_file: str):
+    #Load firmware binary from infile
     with open(infile, mode="rb") as fp:
         protected_firmware = fp.read()
-    
+    # Read secrets as a json file
     with open(secret_file, mode="r") as fp:
         secrets = json.load(fp)
-        
+
+    #Extract AES IV, ciphertext, and tag from infile 
     aes_iv = protected_firmware[:16]
     aes_ciphertext = protected_firmware[16:-16]
     aes_tag = protected_firmware[-16:]
     aes_key = base64.b64decode(secrets["aes_key"])
-    
+
+    #Initiliaze AES key in GCM mode
     aes = AES.new(aes_key, AES.MODE_GCM, nonce=aes_iv) 
+
     try:
         firmware_blob = aes.decrypt_and_verify(aes_ciphertext, aes_tag)
         print("AES decryption successful.")
@@ -37,6 +41,7 @@ def decrypt_firmware(infile: str, outfile: str, secret_file: str):
         print("Decryption failed. Check the AES key.")
         return
     
+    #Extract and verify the HMAC
     hmac_key = base64.b64decode(secrets["hmac_key"])
     prehash = firmware_blob[:-64]
     hmac_digest = firmware_blob[-64:]
@@ -51,6 +56,7 @@ def decrypt_firmware(infile: str, outfile: str, secret_file: str):
         print("HMAC verification failed. Check the HMAC key.")
         return
     
+    #Extract signature and firmware and verify through ed25519 verification 
     firmware_blob = prehash[:-64]
     signature = prehash[-64:]
     ed25519_public_key = ECC.import_key(base64.b64decode(secrets["ed25519_public_key"]))
@@ -61,16 +67,18 @@ def decrypt_firmware(infile: str, outfile: str, secret_file: str):
         print("Message is authentic, ed25519 signature verification passed.")
     except ValueError:
         print("The message is not authentic, ed25519 signature verification failed.")
-    
+
+    #Extract version, size, firmware, and release_message to be outputted
     version = u16(firmware_blob[:2], endian='little')
     size = u16(firmware_blob[2:4], endian='little')
     firmware = firmware_blob[4:size+4]
-    relase_message = firmware_blob[size+4:-1].decode('utf-8')
+    release_message = firmware_blob[size+4:-1].decode('utf-8')
     
+    # Write decrypted firmware into output file
     with open(outfile, mode="wb+") as fp:
         fp.write(firmware)
     
-    print(f"Version: {version}\nFirmware Size: {size} bytes\nRelease Message: {relase_message}")
+    print(f"Version: {version}\nFirmware Size: {size} bytes\nRelease Message: {release_message}")
     
     
     
