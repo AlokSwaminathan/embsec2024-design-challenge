@@ -19,18 +19,18 @@ import base64
 
 def decrypt_firmware(infile: str, outfile: str, secret_file: str):
     #Load firmware binary from infile
-    with open(infile, mode="rb") as fp:
-        protected_firmware = fp.read()
+    with open(infile, mode="rb") as protected_binary:
+        protected_firmware = protected_binary.read()
     # Read secrets as a json file
-    with open(secret_file, mode="r") as fp:
-        secrets = json.load(fp)
+    with open(secret_file, mode="r") as secrets_json:
+        secrets = json.load(secrets_json)
 
     #Extract AES IV, ciphertext, and tag from infile 
     aes_iv = protected_firmware[:16]
-    aes_ciphertext = protected_firmware[16:-16]
+    aes_ciphertext = protected_firmware[16:]
     aes_key = base64.b64decode(secrets["aes_key"])
 
-    #Initiliaze AES key in GCM mode
+    #Initiliaze AES key in CBC mode
     aes = AES.new(aes_key, AES.MODE_CBC, nonce=aes_iv) 
 
     try:
