@@ -14,7 +14,6 @@ import os
 from Crypto.Cipher import AES
 from Crypto.PublicKey import ECC
 from Crypto.Signature import eddsa
-from Crypto.Hash import HMAC, SHA512
 from Crypto.Util.Padding import pad
 import base64
 
