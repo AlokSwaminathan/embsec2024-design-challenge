@@ -27,7 +27,6 @@ If the bootloader responds with a 3, there has been an error and we should stop 
 """
 
 import argparse
-from pwnlib.util.packing import p32,p16
 import time
 import serial
 import platform
