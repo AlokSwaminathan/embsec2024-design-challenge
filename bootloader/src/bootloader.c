@@ -112,8 +112,8 @@ void load_firmware(void) {
 
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
-    uint32_t version = 0;
-    uint32_t size = 0;
+    //uint32_t version = 0;
+    //uint32_t size = 0;
 
     uint32_t crc = crc32(0L, NULL, 0);
     uint8_t checksum[10];
@@ -148,9 +148,9 @@ void load_firmware(void) {
 
         //checksum to ensure data integrity
         crc = crc32(crc, data, frame_length);
-        *framesum = data[frame_length - 4];
-                    (data[frame_length - 3] << 8);
-                    (data[frame_length - 2] << 16);
+        *framesum = data[frame_length - 4] +
+                    (data[frame_length - 3] << 8) +
+                    (data[frame_length - 2] << 16) +
                     (data[frame_length - 1] << 24);
 
         if(checksum != framesum) {
