@@ -17,13 +17,12 @@ from Crypto.Signature import eddsa
 from Crypto.Hash import HMAC, SHA512
 import base64
 
-
 def protect_firmware(infile: str, outfile: str, version: int, message: str, secret_file: str):
     # Load firmware binary from infile
     with open(infile, mode="rb") as fp:
         firmware = fp.read()
 
-    # Read secrets as a json file
+    # Read secrets as a JSON file
     with open(secret_file, mode="r") as fp:
         secrets = json.load(fp)
 
@@ -34,32 +33,29 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
     # Combine parts into single firmware blob
     firmware_blob = metadata + firmware + message.encode('utf-8') + b"\x00"
 
-    # Sign the firmware using ed25519
+    # Sign firmware blob using Ed25519
     ed25519_private_key = base64.b64decode(secrets["ed25519_private_key"])
     ed25519_private_key = ECC.import_key(ed25519_private_key)
     signer = eddsa.new(ed25519_private_key, mode='rfc8032')
     signature = signer.sign(firmware_blob)
     signed_firmware_blob = firmware_blob + signature
 
-    #Extract and verify the HMAC
-    hmac_key = base64.b64decode(secrets["hmac_key"])
-    hmac = HMAC.new(hmac_key, digestmod=SHA512)
-    hmac.update(signed_firmware_blob)
-    hmac_digest = hmac.digest()
-    signed_hashed_firmware_blob = signed_firmware_blob + hmac_digest
-
-    #Decode the base64 encoded AES key from the secrets dictionary
+    # Generate AES key for CBC mode
     aes_key = base64.b64decode(secrets["aes_key"])
+
+    # Encrypt the signed firmware blob using AES CBC
     aes_nonce = os.urandom(16)
-    aes = AES.new(aes_key, AES.MODE_GCM, nonce=aes_nonce)
-    # Encrypt the signed and hashed firmware blob
-    aes_ciphertext, aes_tag = aes.encrypt_and_digest(signed_hashed_firmware_blob)
-    final_firmware_blob = aes_nonce + aes_ciphertext + aes_tag
+    cipher = AES.new(aes_key, AES.MODE_CBC)
+    ct_bytes = cipher.encrypt(pad(signed_firmware_blob, AES.block_size))
 
-    # Write firmware blob to outfile
-    with open(outfile, mode="wb+") as outfile:
-        outfile.write(final_firmware_blob)
+    # Prepare the output JSON
+    iv_b64 = base64.b64encode(aes_nonce).decode('utf-8')
+    ct_b64 = base64.b64encode(ct_bytes).decode('utf-8')
+    result = json.dumps({'iv': iv_b64, 'ciphertext': ct_b64})
 
+    # Write JSON result to outfile
+    with open(outfile, mode="w") as outfile:
+        outfile.write(result)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Protection Tool")
@@ -75,5 +71,4 @@ if __name__ == "__main__":
         "--secrets", help="Path to the secrets json file.", required=True)
     args = parser.parse_args()
 
-    protect_firmware(infile=args.infile, outfile=args.outfile, version=int(
-        args.version), message=args.message, secret_file=args.secrets)
+    protect_firmware(infile=args.infile, outfile=args.outfile, version=args.version, message=args.message, secret_file=args.secrets)
