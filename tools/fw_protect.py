@@ -31,7 +31,7 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
         p16(len(firmware), endian='little')
 
     # Combine parts into single firmware blob
-    firmware_blob = metadata + firmware + message.encode('utf-8') + b"\x00"
+    firmware_blob = metadata + firmware + message.encode('ascii') + b"\x00"
 
     # Sign firmware blob using Ed25519
     ed25519_private_key = base64.b64decode(secrets["ed25519_private_key"])
@@ -44,18 +44,15 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
     aes_key = base64.b64decode(secrets["aes_key"])
 
     # Encrypt the signed firmware blob using AES CBC
-    aes_nonce = os.urandom(16)
+    aes_iv = os.urandom(16)
     cipher = AES.new(aes_key, AES.MODE_CBC)
     ct_bytes = cipher.encrypt(pad(signed_firmware_blob, AES.block_size))
 
-    # Prepare the output JSON
-    iv_b64 = base64.b64encode(aes_nonce).decode('utf-8')
-    ct_b64 = base64.b64encode(ct_bytes).decode('utf-8')
-    result = json.dumps({'iv': iv_b64, 'ciphertext': ct_b64})
-
+    protected_firmware = aes_iv + ct_bytes
+    
     # Write JSON result to outfile
-    with open(outfile, mode="w") as outfile:
-        outfile.write(result)
+    with open(outfile, mode="wb+") as outfile:
+        outfile.write(protected_firmware)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Protection Tool")
