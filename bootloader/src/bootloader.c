@@ -26,10 +26,14 @@
 #include "wolfssl/wolfcrypt/settings.h"
 #include "wolfssl/wolfcrypt/sha.h"
 
+// EEPROM Imports
+#include "driverlib/eeprom.h"
+
 // Forward Declarations
 void load_firmware(void);
 void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
+void write_secrets(void);
 
 // Firmware Constants
 #define METADATA_BASE 0xFC00  // base address of version and firmware size in Flash
@@ -80,6 +84,9 @@ void debug_delay_led() {
 }
 
 int main(void) {
+
+  write_secrets();
+
   // Enable the GPIO port that is used for the on-board LED.
   SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
 
@@ -113,6 +120,39 @@ int main(void) {
       boot_firmware();
     }
   }
+}
+
+/*
+ * Write secrets to EEPROM
+ */
+void write_secrets(void) {
+  // Enable and wait for EEPROM to be ready
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
+  while (!SysCtlPeripheralReady(SYSCTL_PERIPH_EEPROM0)) {
+  }
+
+  // Unlock the EEPROM
+  uint32_t EEPROMInitRes = EEPROMInit();
+
+  if (EEPROMInitRes != EEPROM_INIT_OK) {
+    while (1) {
+    };
+  }
+
+  // Get keys from secrets.h
+  char AES_SECRET[] = AES_KEY;
+  char ED25519_SECRET[] = ED25519_PUBLIC_KEY;
+  char HMAC_SECRET[] = HMAC_KEY;
+
+  // Write the secrets to EEPROM
+  EEPROMProgram((uint32_t *)AES_SECRET, 0, sizeof(AES_SECRET));
+  EEPROMProgram((uint32_t *)ED25519_SECRET, sizeof(AES_SECRET), sizeof(ED25519_SECRET));
+  EEPROMProgram((uint32_t *)HMAC_SECRET, sizeof(AES_SECRET) + sizeof(ED25519_SECRET), sizeof(HMAC_SECRET));
+  
+
+  while(1){
+
+  };
 }
 
 /*
