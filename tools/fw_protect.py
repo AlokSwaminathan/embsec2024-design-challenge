@@ -34,12 +34,14 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
     # Combine parts into single firmware blob
     firmware_blob = metadata + firmware + message.encode('utf-8') + b"\x00"
 
+    # Sign the firmware using ed25519
     ed25519_private_key = base64.b64decode(secrets["ed25519_private_key"])
     ed25519_private_key = ECC.import_key(ed25519_private_key)
     signer = eddsa.new(ed25519_private_key, mode='rfc8032')
     signature = signer.sign(firmware_blob)
     signed_firmware_blob = firmware_blob + signature
 
+    
     hmac_key = base64.b64decode(secrets["hmac_key"])
     hmac = HMAC.new(hmac_key, digestmod=SHA512)
     hmac.update(signed_firmware_blob)
@@ -47,6 +49,7 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
 
     signed_hashed_firmware_blob = signed_firmware_blob + hmac_digest
 
+    #
     aes_key = base64.b64decode(secrets["aes_key"])
     aes_nonce = os.urandom(16)
 
