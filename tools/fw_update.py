@@ -64,15 +64,18 @@ def send_frame(ser, frame, debug=False):
     # Tenatively keep this line, idk why its here though
     time.sleep(0.1)
 
+        # Check if debugging is enabled
     if debug:
         print("Resp: {}".format(ord(resp)))
-    
+
+    # Handle the received response
     if resp == RESP_ERROR:
         raise RuntimeError(
             "ERROR: Bootloader responded with {}".format(repr(resp)))
     elif resp == RESP_RESEND:
         if debug:
             print("Resending frame")
+        # Call the function to resend the frame
         send_frame(ser, frame, debug=debug)
 
 
@@ -101,16 +104,22 @@ def update(ser, infile, debug):
     print(f"Wrote zero length frame (2 bytes) and finished writing firmware")
 
     return ser
-
+import argparse
 
 if __name__ == "__main__":
+    # Create an argument parser for command line arguments
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
 
     parser.add_argument(
         "--firmware", help="Path to firmware image to load.", required=True)
+    
     parser.add_argument(
         "--debug", help="Enable debugging messages.", action="store_true")
+    
+    # Parse the command line arguments
     args = parser.parse_args()
 
+    # Call the update function with the parsed arguments
     update(ser=ser, infile=args.firmware, debug=args.debug)
+    
     ser.close()
