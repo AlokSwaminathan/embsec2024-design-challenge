@@ -8,6 +8,7 @@ Firmware Bundle-and-Protect Tool
 
 """
 import argparse
+from pwnlib.util.packing import p16
 import json
 import os
 from Crypto.Cipher import AES

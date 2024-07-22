@@ -8,6 +8,7 @@ Firmware Decryption Tool
 
 """
 import argparse
+from pwnlib.util.packing import u16
 import json
 from Crypto.Cipher import AES
 from Crypto.PublicKey import ECC
