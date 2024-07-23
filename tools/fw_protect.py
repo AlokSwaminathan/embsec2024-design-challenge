@@ -39,6 +39,7 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
     signer = eddsa.new(ed25519_private_key, mode = 'rfc8032')
     signature = signer.sign(firmware_blob)
     signed_firmware_blob = firmware_blob + signature
+    print("Ed25519 signature generated.")
 
     # Generate AES key for CBC mode
     aes_key = base64.b64decode(secrets["aes_key"])
@@ -49,6 +50,7 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
     ct_bytes = cipher.encrypt(pad(signed_firmware_blob, AES.block_size))
 
     protected_firmware = aes_iv + ct_bytes
+    print("AES encryption successful.")
     
     # Write JSON result to outfile
     with open(outfile, mode = "wb+") as protected_binary:
