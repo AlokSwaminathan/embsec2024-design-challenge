@@ -149,25 +149,38 @@ void load_firmware(void) {
         rcv = uart_read(UART0, BLOCKING, &read);
         frame_length += ((int)rcv << 8);
 
-        //defense against buffer overflow
-        if(frame_length > FLASH_PAGESIZE) {
-            uart_write(UART0, ERROR);
-            SysCtlReset();
-        }
+        // //defense against buffer overflow
+        // if(frame_length > FLASH_PAGESIZE) {
+        //     uart_write(UART0, ERROR);
+        //     SysCtlReset();
+        // }
 
         if (frame_length == 0){
             uart_write(UART0,DONE);
             break;
         }
 
-        if (frame_length + data_index > FLASH_PAGESIZE) {
-            program_flash((void *)page_addr, data, data_index);
-            page_addr += FLASH_PAGESIZE;
-            data_index = 0;
-        }
+        // if (frame_length + data_index > FLASH_PAGESIZE) {
+        //     int32_t res = program_flash((void *)page_addr, data, data_index);
+        //     if (res != 0) {
+        //         uart_write(UART0, ERROR);
+        //         SysCtlReset();
+        //     }
+        //     page_addr += FLASH_PAGESIZE;
+        //     data_index = 0;
+        // }
 
         // Get the number of bytes specified
         for (int i = 0; i < frame_length; i++) {
+            if (data_index >= FLASH_PAGESIZE) {
+                int32_t res = program_flash((void *)page_addr, data, data_index);
+                if (res != 0){
+                    uart_write(UART0, ERROR);
+                    SysCtlReset();
+                }
+                page_addr += FLASH_PAGESIZE;
+                data_index = 0;
+            }
             data[data_index] = uart_read(UART0, BLOCKING, &read);
             data_index++;
         }
@@ -181,11 +194,13 @@ void load_firmware(void) {
         calc_crc = Crc32(0XFFFFFFFF, (uint8_t*)(data + (data_index - frame_length)), frame_length);
 
         if(recv_crc != calc_crc) {
-            uart_write(UART0, RESEND);
+            uart_write(UART0, RESEND); // Request a resend
+            data_index -= frame_length; // Remove the frame from the buffer
+            continue;
         }
 
-        uart_write(UART0, OK); // Acknowledge the frame.
-    } // while(1)
+        uart_write(UART0, OK); // Acknowledge that frame was successfully received
+    }
 }
 
 /*
