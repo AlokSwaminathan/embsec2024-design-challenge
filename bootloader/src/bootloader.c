@@ -133,8 +133,6 @@ void load_firmware(void) {
 
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
-    //uint32_t version = 0;
-    //uint32_t size = 0;
 
     uint32_t calc_crc = 0;
     uint32_t recv_crc = 0;
@@ -150,26 +148,10 @@ void load_firmware(void) {
         rcv = uart_read(UART0, BLOCKING, &read);
         frame_length += ((int)rcv << 8);
 
-        // //defense against buffer overflow
-        // if(frame_length > FLASH_PAGESIZE) {
-        //     uart_write(UART0, ERROR);
-        //     SysCtlReset();
-        // }
-
         if (frame_length == 0){
             uart_write(UART0,DONE);
             break;
         }
-
-        // if (frame_length + data_index > FLASH_PAGESIZE) {
-        //     int32_t res = program_flash((void *)page_addr, data, data_index);
-        //     if (res != 0) {
-        //         uart_write(UART0, ERROR);
-        //         SysCtlReset();
-        //     }
-        //     page_addr += FLASH_PAGESIZE;
-        //     data_index = 0;
-        // }
 
         calc_crc = 0xFFFFFFFF;
 
@@ -205,6 +187,7 @@ void load_firmware(void) {
 
         uart_write(UART0, OK); // Acknowledge that frame was successfully received
     }
+    // Program leftover frame data to flash
     if (data_index > 0){
         int32_t res = program_flash((void *)page_addr, data, data_index);
         if (res != 0){
