@@ -52,13 +52,6 @@ void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
 
-// Device metadata
-uint16_t *fw_version_address = (uint16_t *)METADATA_BASE;
-uint16_t *fw_size_address = (uint16_t *)(METADATA_BASE + 2);
-uint8_t *fw_release_message_address;
-// Firmware Buffer
-unsigned char data[FLASH_PAGESIZE];
-
 // Delay to allow time to connect GDB
 // green LED as visual indicator of when this function is running
 void debug_delay_led() {

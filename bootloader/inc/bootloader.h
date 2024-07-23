@@ -11,6 +11,10 @@
 #define IV_LEN 16
 #define MAX_MSG_LEN 256
 
+// Firmware Constants
+#define METADATA_BASE 0xFC00  // base address of version and firmware size in Flash
+#define FW_BASE 0x10000       // base address of firmware in Flash
+
 // FLASH Constants
 #define FLASH_PAGESIZE 1024
 #define FLASH_WRITESIZE 4
@@ -50,6 +54,12 @@ typedef struct fw_meta_s {
 } fw_meta_st;
 
 long program_flash(void* page_addr, unsigned char * data, unsigned int data_len);
+
+// Global Variables
+uint16_t *fw_version_address;
+uint16_t *fw_size_address;
+uint8_t *fw_release_message_address;
+unsigned char data[FLASH_PAGESIZE]; // Firmware Buffer
 
 #endif
 
