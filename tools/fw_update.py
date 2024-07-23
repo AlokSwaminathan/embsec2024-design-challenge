@@ -65,10 +65,11 @@ def send_frame(ser, frame, debug = False):
     
     checksum = p32(crc32.checksum(frame),endian = 'little')
     
+    print(f"Checksum: {checksum}") if debug else None
     ser.write(checksum)  # Write the frame checksum
 
     if debug: #remember to remove later ❗❗❗❗❗❗
-        print(f"Frame size: {p16(len(frame))}")
+        print(f"Frame size: {len(frame)}")
         print_hex(frame)
 
     resp = ser.read(1)  # Wait for an OK from the bootloader
@@ -87,8 +88,18 @@ def send_frame(ser, frame, debug = False):
     elif resp == RESP_RESEND:
         if debug:
             print("Resending frame")
+        num_zeros = 0
+        buf = b''
+        while num_zeros < 4:
+            buf += ser.read(1)
+            if buf[-1] == 0:
+                num_zeros += 1
+            else:
+                num_zeros = 0
+        print(buf.decode('ascii'))
+        exit(1)
         # Call the function to resend the frame
-        send_frame(ser, frame, debug=debug)
+        # send_frame(ser, frame, debug=debug)
 
 def ready_bootloader():
     ser.write(b'U')
