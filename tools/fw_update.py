@@ -57,12 +57,13 @@ def send_frame(ser, frame, debug = False):
     ser.write(checksum)  # Write the frame checksum
 
     if debug: #remember to remove later ❗❗❗❗❗❗
+        print(f"Frame size: {len(frame)}")
         print_hex(frame)
 
     resp = ser.read(1)  # Wait for an OK from the bootloader
 
     # Tenatively keep this line, idk why its here though
-    time.sleep(0.1)
+    # time.sleep(0.1)
 
         # Check if debugging is enabled
     if debug:
@@ -78,11 +79,19 @@ def send_frame(ser, frame, debug = False):
         # Call the function to resend the frame
         send_frame(ser, frame, debug=debug)
 
+def ready_bootloader():
+    ser.write(b'U')
+    print("Waiting for bootloader to enter update mode")
+    while ser.read(1).decode('ascii') != 'U':
+        print("Got non-U character from bootloader.")
+    print("Bootloader is ready to recieve firmware.")
 
 def update(ser, infile, debug):
     # Open serial port. Set baudrate to 115200. Set timeout to 2 seconds.
     with open(infile, "rb") as fp:
         firmware = fp.read()
+    
+    ready_bootloader()
 
     # Send firmware in frames
     num_frames = len(firmware) // FRAME_SIZE
