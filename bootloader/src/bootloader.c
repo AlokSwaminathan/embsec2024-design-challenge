@@ -171,6 +171,8 @@ void load_firmware(void) {
         //     data_index = 0;
         // }
 
+        calc_crc = 0xFFFFFFFF;
+
         // Get the number of bytes specified
         for (int i = 0; i < frame_length; i++) {
             if (data_index >= FLASH_PAGESIZE) {
@@ -183,6 +185,7 @@ void load_firmware(void) {
                 data_index = 0;
             }
             data[data_index] = uart_read(UART0, BLOCKING, &read);
+            calc_crc = Crc32(calc_crc, (uint8_t*)(data + data_index), 1);
             data_index++;
             total_length++;
         }
@@ -193,8 +196,6 @@ void load_firmware(void) {
         }
 
         // Validate recv_crc to ensure data integrity over UART
-        calc_crc = Crc32(0XFFFFFFFF, (uint8_t*)(data + (data_index - frame_length)), frame_length);
-
         if(recv_crc != calc_crc) {
             uart_write(UART0, RESEND); // Request a resend
             data_index -= frame_length; // Remove the frame from the buffer
