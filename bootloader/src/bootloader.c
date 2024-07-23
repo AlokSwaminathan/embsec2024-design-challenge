@@ -212,6 +212,8 @@ void load_firmware(void) {
             SysCtlReset();
         }
     }
+
+    // TODO : Decrypt the firmware in flash
 }
 
 /*
