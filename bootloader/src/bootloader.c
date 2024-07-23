@@ -18,6 +18,7 @@
 
 // Application Imports
 #include "driverlib/gpio.h"
+#include "driverlib/uart.h"
 #include "uart/uart.h"
 
 // Cryptography Imports
@@ -212,11 +213,10 @@ void load_firmware(void) {
 
   uint32_t data_index = 0;
   uint32_t page_addr = FW_BASE;
-  // uint32_t version = 0;
-  // uint32_t size = 0;
 
   uint32_t calc_crc = 0;
   uint32_t recv_crc = 0;
+  uint8_t framesum[10];
 
   /* Loop here until you can get all your characters and stuff */
   while (1) {
@@ -226,26 +226,12 @@ void load_firmware(void) {
     rcv = uart_read(UART0, BLOCKING, &read);
     frame_length += ((int)rcv << 8);
 
-    // //defense against buffer overflow
-    // if(frame_length > FLASH_PAGESIZE) {
-    //     uart_write(UART0, ERROR);
-    //     SysCtlReset();
-    // }
-
     if (frame_length == 0) {
       uart_write(UART0, DONE);
+      while (UARTBusy(UART0_BASE)) {
+      };
       break;
     }
-
-    // if (frame_length + data_index > FLASH_PAGESIZE) {
-    //     int32_t res = program_flash((void *)page_addr, data, data_index);
-    //     if (res != 0) {
-    //         uart_write(UART0, ERROR);
-    //         SysCtlReset();
-    //     }
-    //     page_addr += FLASH_PAGESIZE;
-    //     data_index = 0;
-    // }
 
     calc_crc = 0xFFFFFFFF;
 
@@ -268,23 +254,35 @@ void load_firmware(void) {
 
     for (int i = 0; i < 4; i++) {
       // Use fact that integers are little endian on chip to read recv_crc directly as uint32_t
-      ((uint8_t *)recv_crc)[i] = uart_read(UART0, BLOCKING, &read);
+      ((uint8_t *)&recv_crc)[i] = uart_read(UART0, BLOCKING, &read);
     }
 
     // Validate recv_crc to ensure data integrity over UART
     if (recv_crc != calc_crc) {
-      uart_write(UART0, RESEND);   // Request a resend
+      uart_write(UART0, RESEND);
+      while (UARTBusy(UART0_BASE)) {
+      };
+      // Request a resend
       data_index -= frame_length;  // Remove the frame from the buffer
+      if (data_index < 0) {
+        data_index = 0;
+      }
       total_length -= frame_length;
       continue;
     }
 
-    uart_write(UART0, OK);  // Acknowledge that frame was successfully received
+    uart_write(UART0, OK);
+    // Acknowledge that frame was successfully received
+    while (UARTBusy(UART0_BASE)) {
+    };
   }
-  if (data_index % 1024 != 0) {
+  // Program leftover frame data to flash
+  if (data_index > 0) {
     int32_t res = program_flash((void *)page_addr, data, data_index);
     if (res != 0) {
       uart_write(UART0, ERROR);
+      while (UARTBusy(UART0_BASE)) {
+      };
       SysCtlReset();
     }
   }
