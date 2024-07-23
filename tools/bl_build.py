@@ -22,7 +22,7 @@ BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
 
 
 def padded_uint8t_array(key):
-    char_array = "{" + ", ".join([f"{0xb:02x}" for b in key])
+    char_array = "{" + ", ".join([f"0x{b:02x}" for b in key])
     padding = ['0x00' for _ in range(0, 4 - (len(key) % 4))] if len(key) % 4 != 0 else []
     return char_array + (", " + ", ".join(padding) + "}") if padding else char_array + "}"
 
