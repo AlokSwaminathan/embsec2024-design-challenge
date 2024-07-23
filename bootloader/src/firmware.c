@@ -1,6 +1,8 @@
 #include "firmware.h"
 
 #include "bootloader.h"
+#include <uart.h>
+#include <hw_memmap.h>
 
 /*
  * Load the firmware into flash.
