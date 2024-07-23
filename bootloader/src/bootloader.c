@@ -145,6 +145,8 @@ void load_firmware(void) {
 
     if (frame_length == 0) {
       uart_write(UART0, DONE);
+      while (UARTBusy(UART0_BASE)) {
+      };
       break;
     }
 
@@ -169,37 +171,32 @@ void load_firmware(void) {
 
     for (int i = 0; i < 4; i++) {
       // Use fact that integers are little endian on chip to read recv_crc directly as uint32_t
-      ((uint8_t *)recv_crc)[i] = uart_read(UART0, BLOCKING, &read);
+      ((uint8_t *)&recv_crc)[i] = uart_read(UART0, BLOCKING, &read);
     }
 
     // Validate recv_crc to ensure data integrity over UART
     if (recv_crc != calc_crc) {
       uart_write(UART0, RESEND);
-      uart_write_str(UART0, "Recieved Checksum: ");
-      uart_write_hex_bytes(UART0, (uint8_t *)&recv_crc, 4);
-      uart_write_str(UART0, "\nCalculated Checksum: ");
-      uart_write_hex_bytes(UART0, (uint8_t *)&calc_crc, 4);
-      nl(UART0);
-      uart_write(UART0, '\0');
-      uart_write(UART0, '\0');
-      uart_write(UART0, '\0');
-      uart_write(UART0, '\0');
       while (UARTBusy(UART0_BASE)) {
       };
-      SysCtlReset();
       // Request a resend
       data_index -= frame_length;  // Remove the frame from the buffer
       total_length -= frame_length;
       continue;
     }
 
-    uart_write(UART0, OK);  // Acknowledge that frame was successfully received
+    uart_write(UART0, OK);
+    // Acknowledge that frame was successfully received
+    while (UARTBusy(UART0_BASE)) {
+    };
   }
   // Program leftover frame data to flash
   if (data_index > 0) {
     int32_t res = program_flash((void *)page_addr, data, data_index);
     if (res != 0) {
       uart_write(UART0, ERROR);
+      while (UARTBusy(UART0_BASE)) {
+      };
       SysCtlReset();
     }
   }
