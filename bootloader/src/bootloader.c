@@ -187,9 +187,6 @@ void load_firmware(void) {
             uart_write(UART0, RESEND);
         } //if
 
-        // Update to next page
-        page_addr += FLASH_PAGESIZE;
-        data_index = 0;
 
         // If at end of firmware, go to main
         if (frame_length == 0) {
