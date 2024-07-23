@@ -1,9 +1,11 @@
 // Copyright 2024 The MITRE Corporation. ALL RIGHTS RESERVED
 // Approved for public release. Distribution unlimited 23-02181-25.
 
-#include "bootloader.h"
+#include "inc/bootloader.h"
 
-#include "secrets.h"
+#include "inc/secrets.h"
+
+
 
 // Hardware Imports
 #include "inc/hw_memmap.h"     // Peripheral Base Addresses
@@ -203,6 +205,84 @@ void load_firmware(void) {
 
   // TODO : Decrypt the firmware in flash
 }
+
+// Define constants if not already defined
+#define AES_KEY_SIZE 128
+#define ED25519_PUBLIC_KEY_SIZE 32
+#define EEPROM_AES_KEY_ADDR 0x00 
+#define EEPROM_ED25519_PUBLIC_KEY_ADDR 0x01 
+#define FW_BASE 0x08000000 
+#define ERROR 0x01 
+#define SYSCTL_PERIPH_CCM0 0x01 
+
+void decrypt_firmware(uint32_t passed_firmware_size) {
+    uint32_t aes_key[32]; 
+    uint32_t iv[AES_IV_SIZE / 4];
+    uint32_t ed25519_public_key[32]; // Assuming ED25519_PUBLIC_KEY_SIZE is in bytes
+    uint32_t* firmware = (uint32_t*)FW_BASE;
+    uint32_t firmware_size = passed_firmware_size; 
+    uint32_t decrypted_firmware[firmware_size / 4];
+    int ret;
+    int verfied = 0
+
+    // Read the AES key from EEPROM
+    EEPROMRead(aes_key, 0x00, AES_KEY_SIZE); // AES_KEY_SIZE 
+
+
+    // Read the ED25519 public key from EEPROM
+    EEPROMRead(ed25519_public_key, AES_KEY_SIZE, ED25519_PUBLIC_KEY_SIZE);
+
+    // Initialize ED25519 public key
+    wc_ed25519_init_key(&ed25519_public_key);
+    ret = wc_ed25519_import_public(firmware, firmware_size, &ed25519_public_key);
+    if (ret != 0) {
+    	SysCtlReset();
+    }
+    // Enable the AES module
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_CCM0);
+    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_CCM0));
+
+    // Reset the AES module
+    AESReset(AES_BASE);
+
+    // Configure the AES module for decryption
+    AESConfigSet(AES_BASE, AES_CFG_DIR_DECRYPT | AES_CFG_MODE_CBC | AES_CFG_KEY_SIZE_256BIT);
+
+
+    // Set the decryption key
+    AESKey1Set(AES_BASE, aes_key, AES_CFG_KEY_SIZE_256BIT);
+
+    // Set the initial value of IV
+    AESIVSet(AES_BASE, iv);
+
+    // Decrypt the firmware
+    if (!AESDataProcess(AES_BASE, firmware, decrypted_firmware, firmware_size)) {
+        uart_write(UART0, ERROR);
+        SysCtlReset();
+    }
+    // Unpad stuff
+    int unpadded_size = unpad_pkcs7(decrypted_firmware, firmware_size);
+    if (unpadded_size < 0) {
+        uart_write(UART0, ERROR);
+        SysCtlReset();
+    }
+
+    // Verify signature 
+    ret = wc_ed25519ctx_verify_msg(key, sizeof(key), decrypted_firmware, unpadded_size,
+        &verified, &ed25519_public_key);
+    if (ret < 0) {
+        uart_write(UART0, ERROR);
+        SysCtlReset();
+    } else if (verified == 0)
+         uart_write(UART0, ERROR);
+         SysCtlReset();
+    // Write the decrypted firmware back to flash
+    program_flash((void*)FW_BASE, (unsigned char*)decrypted_firmware, firmware_size);
+}
+    
+
+    
+
 
 /*
  * Program a stream of bytes to the flash.
