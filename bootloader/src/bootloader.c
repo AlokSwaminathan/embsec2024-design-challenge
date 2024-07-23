@@ -135,8 +135,8 @@ void load_firmware(void) {
     //uint32_t version = 0;
     //uint32_t size = 0;
 
-    uint32_t crc = 0;
-    uint8_t checksum[10];
+    uint32_t calc_crc = 0;
+    uint32_t recv_crc = 0;
     uint8_t framesum[10];
 
 
@@ -173,26 +173,16 @@ void load_firmware(void) {
         }
 
         for (int i = 0; i < 4; i++) {
-            *checksum += uart_read(UART0, BLOCKING, &read);
-        } // for
+            // Use fact that integers are little endian on chip to read recv_crc directly as uint32_t
+            ((uint8_t*)recv_crc)[i] = uart_read(UART0, BLOCKING, &read);
+        }
 
-        //checksum to ensure data integrity
-        crc = Crc32(crc, data, frame_length);
-        *framesum = data[frame_length - 4] +
-                    (data[frame_length - 3] << 8) +
-                    (data[frame_length - 2] << 16) +
-                    (data[frame_length - 1] << 24);
+        // Validate recv_crc to ensure data integrity over UART
+        calc_crc = Crc32(0XFFFFFFFF, (uint8_t*)(data + (data_index - frame_length)), frame_length);
 
-        if(checksum != framesum) {
+        if(recv_crc != calc_crc) {
             uart_write(UART0, RESEND);
-        } //if
-
-
-        // If at end of firmware, go to main
-        if (frame_length == 0) {
-            uart_write(UART0, DONE);
-            break;
-        } // if
+        }
 
         uart_write(UART0, OK); // Acknowledge the frame.
     } // while(1)
