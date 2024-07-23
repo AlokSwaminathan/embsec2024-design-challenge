@@ -62,3 +62,4 @@ bootloader/inc/secrets.h
 tools/secret_build_output.txt
 secret_build_output.txt
 *secret*.json
+!bootloader/inc/secrets.h
