@@ -23,7 +23,7 @@ BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
 
 def padded_uint8t_array(key):
     char_array = "{" + ", ".join([f"{0xb:02x}" for b in key])
-    padding = ['0x00' for _ in range(0, 4 - (len(str) % 4))] if len(str) % 4 != 0 else []
+    padding = ['0x00' for _ in range(0, 4 - (len(key) % 4))] if len(key) % 4 != 0 else []
     return char_array + (", " + ", ".join(padding) + "}") if padding else char_array + "}"
 
 def make_bootloader(ed25519_pub_key, aes_key) -> bool:
@@ -47,7 +47,7 @@ def make_bootloader(ed25519_pub_key, aes_key) -> bool:
         secrets_header.write("#define ED25519_PUBLIC_KEY {}\n")
         secrets_header.write("#define ED25519_PUBLIC_KEY_SIZE 0\n")
         secrets_header.write("#define AES_KEY {}\n")
-        secrets_header.write("#define AES_KEY_SIZE " + 0 + "\n")
+        secrets_header.write("#define AES_KEY_SIZE 0\n")
 
     # Return True if make returned 0, otherwise return False.
     return status == 0
