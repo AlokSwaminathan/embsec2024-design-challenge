@@ -99,6 +99,26 @@ int main(void) {
     // debug_delay_led();
 
     initialize_uarts(UART0);
+
+
+    uart_write_str(UART0, "Welcome to the BWSI Vehicle Update Service!\n");
+    uart_write_str(UART0, "Send \"U\" to update, and \"B\" to run the firmware.\n");
+
+    int resp;
+    while (1) {
+        uint32_t instruction = uart_read(UART0, BLOCKING, &resp);
+
+        if (instruction == UPDATE) {
+            uart_write_str(UART0, "U");
+            load_firmware();
+            uart_write_str(UART0, "Loaded new firmware.\n");
+            nl(UART0);
+        } else if (instruction == BOOT) {
+            uart_write_str(UART0, "B");
+            uart_write_str(UART0, "Booting firmware...\n");
+            boot_firmware();
+        }
+    }
 }
 
 
