@@ -150,11 +150,18 @@ void write_secrets(void) {
   // Write the secrets to EEPROM
   EEPROMProgram((uint32_t *)AES_SECRET, 0, sizeof(AES_SECRET));
   EEPROMProgram((uint32_t *)ED25519_SECRET, sizeof(AES_SECRET), sizeof(ED25519_SECRET));
-  
 
   while(1){
 
   };
+
+  // Delete the secrets from memory
+  for (int i = 0; i < sizeof(AES_SECRET); i++) {
+    AES_SECRET[i] = 0;
+  }
+  for (int i = 0; i < sizeof(ED25519_SECRET); i++) {
+    ED25519_SECRET[i] = 0;
+  }
 }
 
 /*
