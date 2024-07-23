@@ -17,7 +17,10 @@
 
 // Protocol Constants
 #define OK ((unsigned char)0x00)
-#define ERROR ((unsigned char)0x01)
+#define RESEND ((unsigned char)0x01)
+#define DONE ((unsigned char)0x02)
+#define ERROR ((unsigned char)0x03)
+
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
 
