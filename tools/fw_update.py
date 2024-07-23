@@ -47,12 +47,12 @@ RESP_ERROR = b"\x03"
 FRAME_SIZE = 256
 
 
-def send_frame(ser, frame, debug=False):
-    ser.write(p16(len(frame), endian='little'))  # Write the frame length
+def send_frame(ser, frame, debug = False):
+    ser.write(p16(len(frame), endian = 'little'))  # Write the frame length
     
     ser.write(frame)  # Write the frame data
     
-    checksum = p32(crc32(frame),endian='little')
+    checksum = p32(crc32(frame),endian = 'little')
     
     ser.write(checksum)  # Write the frame checksum
 
@@ -89,14 +89,14 @@ def update(ser, infile, debug):
     num_frames -= 1 if len(firmware) % FRAME_SIZE == 0 else 0
     for i in range(0, len(firmware), FRAME_SIZE):
         frame = firmware[i:i+FRAME_SIZE]
-        send_frame(ser, frame,debug=debug)
-        print(f"Sent frame {i//FRAME_SIZE} of {len(firmware)//FRAME_SIZE}")
+        send_frame(ser, frame, debug = debug)
+        print(f"Sent frame {i // FRAME_SIZE} of {len(firmware) // FRAME_SIZE}")
     
 
     print("Done writing firmware.")
 
     # Send a zero length payload to tell the bootlader to finish writing it's page.
-    ser.write(p16(0x0000, endian='little'))
+    ser.write(p16(0x0000, endian = 'little'))
     resp = ser.read(1)  # Wait for a DONE from the bootloader
     if resp != RESP_DONE:
         raise RuntimeError(
@@ -108,18 +108,18 @@ import argparse
 
 if __name__ == "__main__":
     # Create an argument parser for command line arguments
-    parser = argparse.ArgumentParser(description="Firmware Update Tool")
+    parser = argparse.ArgumentParser(description = "Firmware Update Tool")
 
     parser.add_argument(
-        "--firmware", help="Path to firmware image to load.", required=True)
+        "--firmware", help = "Path to firmware image to load.", required = True)
     
     parser.add_argument(
-        "--debug", help="Enable debugging messages.", action="store_true")
+        "--debug", help = "Enable debugging messages.", action = "store_true")
     
     # Parse the command line arguments
     args = parser.parse_args()
 
     # Call the update function with the parsed arguments
-    update(ser=ser, infile=args.firmware, debug=args.debug)
+    update(ser = ser, infile = args.firmware, debug = args.debug)
     
     ser.close()

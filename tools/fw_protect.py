@@ -19,16 +19,16 @@ import base64
 
 def protect_firmware(infile: str, outfile: str, version: int, message: str, secret_file: str):
     # Load firmware binary from infile
-    with open(infile, mode="rb") as fp:
+    with open(infile, mode = "rb") as fp:
         firmware = fp.read()
 
     # Read secrets as a JSON file
-    with open(secret_file, mode="r") as fp:
+    with open(secret_file, mode = "r") as fp:
         secrets = json.load(fp)
 
     # Pack version and size into two little-endian shorts
-    metadata = p16(version, endian='little') + \
-        p16(len(firmware), endian='little')
+    metadata = p16(version, endian = 'little') + \
+        p16(len(firmware), endian = 'little')
 
     # Combine parts into single firmware blob
     firmware_blob = metadata + firmware + message.encode('ascii') + b"\x00"
@@ -36,7 +36,7 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
     # Sign firmware blob using Ed25519
     ed25519_private_key = base64.b64decode(secrets["ed25519_private_key"])
     ed25519_private_key = ECC.import_key(ed25519_private_key)
-    signer = eddsa.new(ed25519_private_key, mode='rfc8032')
+    signer = eddsa.new(ed25519_private_key, mode = 'rfc8032')
     signature = signer.sign(firmware_blob)
     signed_firmware_blob = firmware_blob + signature
 
@@ -51,21 +51,26 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
     protected_firmware = aes_iv + ct_bytes
     
     # Write JSON result to outfile
-    with open(outfile, mode="wb+") as protected_binary:
+    with open(outfile, mode = "wb+") as protected_binary:
         protected_binary.write(protected_firmware)
 
+# parameters for compiling function in terminal
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Firmware Protection Tool")
+    parser = argparse.ArgumentParser(description = "Firmware Protection Tool")
     parser.add_argument(
-        "--infile", help="Path to the firmware image to protect.", required=True)
+        "--infile", help = "Path to the firmware image to protect.", required = True)
     parser.add_argument(
-        "--outfile", help="Filename for the output firmware.", required=True)
+        "--outfile", help = "Filename for the output firmware.", required = True)
     parser.add_argument(
-        "--version", help="Version number of this firmware.", required=True, type=int)
+        "--version", help = "Version number of this firmware.", required = True, type = int)
     parser.add_argument(
-        "--message", help="Release message for this firmware.", required=True)
+        "--message", help = "Release message for this firmware.", required = True)
     parser.add_argument(
-        "--secrets", help="Path to the secrets json file.", required=True)
+        "--secrets", help = "Path to the secrets json file.", required = True)
     args = parser.parse_args()
 
-    protect_firmware(infile=args.infile, outfile=args.outfile, version=args.version, message=args.message, secret_file=args.secrets)
+    protect_firmware(infile = args.infile, 
+                     outfile = args.outfile, 
+                     version = args.version, 
+                     message = args.message, 
+                     secret_file = args.secrets)
