@@ -9,7 +9,7 @@ Firmware Updater Tool
 A frame consists of three sections:
 1. Two bytes for the length of the data section (little endian)
 2. A data section of length defined in the length section
-3. A two byte CRC16 checksum of the data section
+3. A four byte CRC32 checksum of the data section
 
 [ 0x02 ] [ variable ] [0x04]
 --------------------------------
@@ -31,7 +31,7 @@ from pwn import *
 import time
 import serial
 import platform
-from zlib import crc32
+from crc import Calculator, Configuration
 
 from util import *
 
@@ -39,25 +39,36 @@ if platform.system() == 'Darwin':
     ser = serial.Serial("/dev/tty.usbmodem0E23AD551", 115200)
 else:
     ser = serial.Serial("/dev/ttyACM0", 115200)
-
+    
+# Define the bootloader response codes
 RESP_OK = b"\x00"
 RESP_RESEND = b"\x01"
 RESP_DONE = b"\x02"
 RESP_ERROR = b"\x03"
 FRAME_SIZE = 256
 
+# Define the CRC32 configuration
+crc_config = Configuration(
+  width=32,
+  polynomial=0x04C11DB7,
+  init_value=0xFFFFFFFF,
+  final_xor_value=0x00000000,
+  reverse_input=True,
+  reverse_output=True,
+)
+crc32 = Calculator(crc_config)
 
 def send_frame(ser, frame, debug = False):
     ser.write(p16(len(frame), endian = 'little'))  # Write the frame length
     
     ser.write(frame)  # Write the frame data
     
-    checksum = p32(crc32(frame),endian = 'little')
+    checksum = p32(crc32.checksum(frame),endian = 'little')
     
     ser.write(checksum)  # Write the frame checksum
 
     if debug: #remember to remove later ❗❗❗❗❗❗
-        print(f"Frame size: {len(frame)}")
+        print(f"Frame size: {p16(len(frame))}")
         print_hex(frame)
 
     resp = ser.read(1)  # Wait for an OK from the bootloader
