@@ -88,7 +88,6 @@ void debug_delay_led() {
 }
 
 int main(void) {
-
   write_secrets();
 
   // Enable the GPIO port that is used for the on-board LED.
@@ -129,6 +128,8 @@ int main(void) {
 /*
  * Write secrets to EEPROM
  */
+#pragma GCC push_options
+#pragma GCC optimize("O0")
 void write_secrets(void) {
   // Enable and wait for EEPROM to be ready
   SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
@@ -139,123 +140,156 @@ void write_secrets(void) {
   uint32_t EEPROMInitRes = EEPROMInit();
 
   if (EEPROMInitRes != EEPROM_INIT_OK) {
-    while (1) {
-    };
+    SysCtlReset();
   }
 
   // Get keys from secrets.h
-  char AES_SECRET[] = AES_KEY;
-  char ED25519_SECRET[] = ED25519_PUBLIC_KEY;
+  uint8_t AES_SECRET[] = AES_KEY;
+  uint8_t ED25519_SECRET[] = ED25519_PUBLIC_KEY;
 
   // Write the secrets to EEPROM
   EEPROMProgram((uint32_t *)AES_SECRET, 0, sizeof(AES_SECRET));
   EEPROMProgram((uint32_t *)ED25519_SECRET, sizeof(AES_SECRET), sizeof(ED25519_SECRET));
 
-  while(1){
+  // Find the secrets in flash
+  bool matches_aes = false;
+  bool matches_ed = false;
+  uint8_t* aes_flash_addr;
+  uint8_t* ed_flash_addr;
+  for (uint8_t* addr = 0; (addr < (uint8_t*)0x3FFFF) && (!matches_aes || !matches_ed); addr++){
+    if (!matches_aes && *addr == AES_SECRET[0]){
+      matches_aes = true;
+      for (uint8_t* i = addr; i < addr + sizeof(AES_SECRET); i++){
+        if (*i != AES_SECRET[(int)(i - addr)]){
+          matches_aes = false;
+          break;
+        }
+      }
+      if (matches_aes){
+        aes_flash_addr = addr;
+        addr += sizeof(AES_SECRET);
+      }
+    } else if (!matches_ed && *addr == ED25519_SECRET[0]){
+      for (uint8_t* i = addr; i < addr + sizeof(ED25519_SECRET); i++){
+        if (*i != ED25519_SECRET[(int)(i - addr)]){
+          matches_ed = false;
+          break;
+        }
+      }
+      if (matches_ed){
+        ed_flash_addr = addr;
+        addr += sizeof(ED25519_SECRET);
+      }
+    }
+  }
 
-  };
-
-  // Delete the secrets from memory
+  // Clear the secrets from the stack
   for (int i = 0; i < sizeof(AES_SECRET); i++) {
-    AES_SECRET[i] = 0;
+    AES_SECRET[i] = 0xFF;
   }
   for (int i = 0; i < sizeof(ED25519_SECRET); i++) {
-    ED25519_SECRET[i] = 0;
+    ED25519_SECRET[i] = 0xFF;
+  }
+
+  // Remove the secrets from flash
+  int32_t res;
+  res = FlashProgram((uint32_t *) AES_SECRET, (uint32_t) aes_flash_addr, sizeof(AES_SECRET));
+  res |= FlashProgram((uint32_t *) ED25519_SECRET, (uint32_t) ed_flash_addr, sizeof(ED25519_SECRET));
+  if (res != 0) {
+    SysCtlReset();
   }
 }
+#pragma GCC pop_options
 
 /*
  * Load the firmware into flash.
  */
 void load_firmware(void) {
-    int frame_length = 0;
-    int read = 0;
-    uint32_t rcv = 0;
-    uint32_t total_length = 0;
+  int frame_length = 0;
+  int read = 0;
+  uint32_t rcv = 0;
+  uint32_t total_length = 0;
 
-    uint32_t data_index = 0;
-    uint32_t page_addr = FW_BASE;
-    //uint32_t version = 0;
-    //uint32_t size = 0;
+  uint32_t data_index = 0;
+  uint32_t page_addr = FW_BASE;
+  // uint32_t version = 0;
+  // uint32_t size = 0;
 
-    uint32_t calc_crc = 0;
-    uint32_t recv_crc = 0;
-    uint8_t framesum[10];
+  uint32_t calc_crc = 0;
+  uint32_t recv_crc = 0;
 
+  /* Loop here until you can get all your characters and stuff */
+  while (1) {
+    // Get two bytes for the length.
+    rcv = uart_read(UART0, BLOCKING, &read);
+    frame_length = (int)rcv;
+    rcv = uart_read(UART0, BLOCKING, &read);
+    frame_length += ((int)rcv << 8);
 
-    /* Loop here until you can get all your characters and stuff */
-    while (1) {
+    // //defense against buffer overflow
+    // if(frame_length > FLASH_PAGESIZE) {
+    //     uart_write(UART0, ERROR);
+    //     SysCtlReset();
+    // }
 
-        // Get two bytes for the length.
-        rcv = uart_read(UART0, BLOCKING, &read);
-        frame_length = (int)rcv;
-        rcv = uart_read(UART0, BLOCKING, &read);
-        frame_length += ((int)rcv << 8);
-
-        // //defense against buffer overflow
-        // if(frame_length > FLASH_PAGESIZE) {
-        //     uart_write(UART0, ERROR);
-        //     SysCtlReset();
-        // }
-
-        if (frame_length == 0){
-            uart_write(UART0,DONE);
-            break;
-        }
-
-        // if (frame_length + data_index > FLASH_PAGESIZE) {
-        //     int32_t res = program_flash((void *)page_addr, data, data_index);
-        //     if (res != 0) {
-        //         uart_write(UART0, ERROR);
-        //         SysCtlReset();
-        //     }
-        //     page_addr += FLASH_PAGESIZE;
-        //     data_index = 0;
-        // }
-
-        calc_crc = 0xFFFFFFFF;
-
-        // Get the number of bytes specified
-        for (int i = 0; i < frame_length; i++) {
-            if (data_index >= FLASH_PAGESIZE) {
-                int32_t res = program_flash((void *)page_addr, data, data_index);
-                if (res != 0){
-                    uart_write(UART0, ERROR);
-                    SysCtlReset();
-                }
-                page_addr += FLASH_PAGESIZE;
-                data_index = 0;
-            }
-            data[data_index] = uart_read(UART0, BLOCKING, &read);
-            calc_crc = Crc32(calc_crc, (uint8_t*)(data + data_index), 1);
-            data_index++;
-            total_length++;
-        }
-
-        for (int i = 0; i < 4; i++) {
-            // Use fact that integers are little endian on chip to read recv_crc directly as uint32_t
-            ((uint8_t*)recv_crc)[i] = uart_read(UART0, BLOCKING, &read);
-        }
-
-        // Validate recv_crc to ensure data integrity over UART
-        if(recv_crc != calc_crc) {
-            uart_write(UART0, RESEND); // Request a resend
-            data_index -= frame_length; // Remove the frame from the buffer
-            total_length -= frame_length;
-            continue;
-        }
-
-        uart_write(UART0, OK); // Acknowledge that frame was successfully received
+    if (frame_length == 0) {
+      uart_write(UART0, DONE);
+      break;
     }
-    if (data_index % 1024 != 0){
+
+    // if (frame_length + data_index > FLASH_PAGESIZE) {
+    //     int32_t res = program_flash((void *)page_addr, data, data_index);
+    //     if (res != 0) {
+    //         uart_write(UART0, ERROR);
+    //         SysCtlReset();
+    //     }
+    //     page_addr += FLASH_PAGESIZE;
+    //     data_index = 0;
+    // }
+
+    calc_crc = 0xFFFFFFFF;
+
+    // Get the number of bytes specified
+    for (int i = 0; i < frame_length; i++) {
+      if (data_index >= FLASH_PAGESIZE) {
         int32_t res = program_flash((void *)page_addr, data, data_index);
-        if (res != 0){
-            uart_write(UART0, ERROR);
-            SysCtlReset();
+        if (res != 0) {
+          uart_write(UART0, ERROR);
+          SysCtlReset();
         }
+        page_addr += FLASH_PAGESIZE;
+        data_index = 0;
+      }
+      data[data_index] = uart_read(UART0, BLOCKING, &read);
+      calc_crc = Crc32(calc_crc, (uint8_t *)(data + data_index), 1);
+      data_index++;
+      total_length++;
     }
 
-    // TODO : Decrypt the firmware in flash
+    for (int i = 0; i < 4; i++) {
+      // Use fact that integers are little endian on chip to read recv_crc directly as uint32_t
+      ((uint8_t *)recv_crc)[i] = uart_read(UART0, BLOCKING, &read);
+    }
+
+    // Validate recv_crc to ensure data integrity over UART
+    if (recv_crc != calc_crc) {
+      uart_write(UART0, RESEND);   // Request a resend
+      data_index -= frame_length;  // Remove the frame from the buffer
+      total_length -= frame_length;
+      continue;
+    }
+
+    uart_write(UART0, OK);  // Acknowledge that frame was successfully received
+  }
+  if (data_index % 1024 != 0) {
+    int32_t res = program_flash((void *)page_addr, data, data_index);
+    if (res != 0) {
+      uart_write(UART0, ERROR);
+      SysCtlReset();
+    }
+  }
+
+  // TODO : Decrypt the firmware in flash
 }
 
 /*
