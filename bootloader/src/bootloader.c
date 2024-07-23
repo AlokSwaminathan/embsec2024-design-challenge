@@ -135,7 +135,7 @@ void load_firmware(void) {
     //uint32_t version = 0;
     //uint32_t size = 0;
 
-    uint32_t crc = crc32(0L, NULL, 0);
+    uint32_t crc = 0;
     uint8_t checksum[10];
     uint8_t framesum[10];
 
@@ -152,22 +152,32 @@ void load_firmware(void) {
         //defense against buffer overflow
         if(frame_length > FLASH_PAGESIZE) {
             uart_write(UART0, ERROR);
+            SysCtlReset();
+        }
+
+        if (frame_length == 0){
+            uart_write(UART0,DONE);
             break;
-        } // if
+        }
+
+        if (frame_length + data_index > FLASH_PAGESIZE) {
+            program_flash((void *)page_addr, data, data_index);
+            page_addr += FLASH_PAGESIZE;
+            data_index = 0;
+        }
 
         // Get the number of bytes specified
         for (int i = 0; i < frame_length; i++) {
-
             data[data_index] = uart_read(UART0, BLOCKING, &read);
-            data_index += 1;
-        } // for
+            data_index++;
+        }
 
         for (int i = 0; i < 4; i++) {
             *checksum += uart_read(UART0, BLOCKING, &read);
         } // for
 
         //checksum to ensure data integrity
-        crc = crc32(crc, data, frame_length);
+        crc = Crc32(crc, data, frame_length);
         *framesum = data[frame_length - 4] +
                     (data[frame_length - 3] << 8) +
                     (data[frame_length - 2] << 16) +
