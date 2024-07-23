@@ -205,7 +205,7 @@ void load_firmware(void) {
 
         uart_write(UART0, OK); // Acknowledge that frame was successfully received
     }
-    if (data_index % 1024 != 0){
+    if (data_index > 0){
         int32_t res = program_flash((void *)page_addr, data, data_index);
         if (res != 0){
             uart_write(UART0, ERROR);
