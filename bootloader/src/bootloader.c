@@ -146,12 +146,10 @@ void write_secrets(void) {
   // Get keys from secrets.h
   char AES_SECRET[] = AES_KEY;
   char ED25519_SECRET[] = ED25519_PUBLIC_KEY;
-  char HMAC_SECRET[] = HMAC_KEY;
 
   // Write the secrets to EEPROM
   EEPROMProgram((uint32_t *)AES_SECRET, 0, sizeof(AES_SECRET));
   EEPROMProgram((uint32_t *)ED25519_SECRET, sizeof(AES_SECRET), sizeof(ED25519_SECRET));
-  EEPROMProgram((uint32_t *)HMAC_SECRET, sizeof(AES_SECRET) + sizeof(ED25519_SECRET), sizeof(HMAC_SECRET));
   
 
   while(1){
