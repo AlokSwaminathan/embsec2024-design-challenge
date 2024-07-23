@@ -31,7 +31,7 @@ def make_bootloader(ed25519_pub_key, aes_key) -> bool:
     os.chdir(BOOTLOADER_DIR)
 
     # Write the keys to a secret header file
-    with open("inc/secrets.h", "w") as secrets_header:
+    with open("inc/secret_keys.h", "w") as secrets_header:
         secrets_header.write("#define ED25519_PUBLIC_KEY " + padded_uint8t_array(ed25519_pub_key) + "\n")
         secrets_header.write("#define ED25519_PUBLIC_KEY_SIZE " + str(len(ed25519_pub_key)) + "\n")
         secrets_header.write("#define AES_KEY " + padded_uint8t_array(aes_key) + "\n")
@@ -42,7 +42,7 @@ def make_bootloader(ed25519_pub_key, aes_key) -> bool:
     status = subprocess.call("make")
     
     # Reset the secrets header file
-    with open("inc/secrets.h", "w") as secrets_header:
+    with open("inc/secret_keys.h", "w") as secrets_header:
         secrets_header.write("// No secrets for you :)\n")
         secrets_header.write("#define ED25519_PUBLIC_KEY {}\n")
         secrets_header.write("#define ED25519_PUBLIC_KEY_SIZE 0\n")
