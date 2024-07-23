@@ -45,7 +45,7 @@ RESP_OK = b"\x00"
 RESP_RESEND = b"\x01"
 RESP_DONE = b"\x02"
 RESP_ERROR = b"\x03"
-FRAME_SIZE = 256
+FRAME_SIZE = 257
 
 # Define the CRC32 configuration
 crc_config = Configuration(

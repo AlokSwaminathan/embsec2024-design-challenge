@@ -181,6 +181,9 @@ void load_firmware(void) {
       };
       // Request a resend
       data_index -= frame_length;  // Remove the frame from the buffer
+      if (data_index < 0) {
+        data_index = 0;
+      }
       total_length -= frame_length;
       continue;
     }
