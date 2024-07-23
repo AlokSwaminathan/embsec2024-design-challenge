@@ -129,6 +129,7 @@ void load_firmware(void) {
     int frame_length = 0;
     int read = 0;
     uint32_t rcv = 0;
+    uint32_t total_length = 0;
 
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
@@ -183,6 +184,7 @@ void load_firmware(void) {
             }
             data[data_index] = uart_read(UART0, BLOCKING, &read);
             data_index++;
+            total_length++;
         }
 
         for (int i = 0; i < 4; i++) {
@@ -196,6 +198,7 @@ void load_firmware(void) {
         if(recv_crc != calc_crc) {
             uart_write(UART0, RESEND); // Request a resend
             data_index -= frame_length; // Remove the frame from the buffer
+            total_length -= frame_length;
             continue;
         }
 
