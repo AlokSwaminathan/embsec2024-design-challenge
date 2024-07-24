@@ -23,62 +23,65 @@ void write_and_remove_secrets(void) {
   }
 
   // Get keys from secrets.h
-  uint8_t AES_SECRET[] = AES_KEY;
-  uint8_t ED25519_SECRET[] = ED25519_PUBLIC_KEY;
+  uint8_t AES_SECRET[AES_KEY_SIZE + 4] = AES_KEY;
+  uint8_t ED25519_SECRET[ED25519_PUBLIC_KEY_SIZE + 4] = ED25519_PUBLIC_KEY;
 
   // Write the secrets to EEPROM
-  EEPROMProgram((uint32_t*)AES_SECRET, 0, sizeof(AES_SECRET));
-  EEPROMProgram((uint32_t*)ED25519_SECRET, sizeof(AES_SECRET), sizeof(ED25519_SECRET));
+  EEPROMProgram((uint32_t*)AES_SECRET, 0, AES_KEY_SIZE);
+  EEPROMProgram((uint32_t*)ED25519_SECRET, AES_KEY_SIZE, ED25519_PUBLIC_KEY_SIZE);
 
-  // Find the secrets in flash
-  bool matches_aes = false;
-  bool matches_ed = false;
-  uint8_t* aes_flash_addr;
-  uint8_t* ed_flash_addr;
-  for (uint8_t* addr = 0; (addr < (uint8_t*)0x3FFFF) && (!matches_aes || !matches_ed); addr++) {
-    if (!matches_aes && *addr == AES_SECRET[0]) {
-      matches_aes = true;
-      for (uint8_t* i = addr; i < addr + sizeof(AES_SECRET); i++) {
-        if (*i != AES_SECRET[(int)(i - addr)]) {
-          matches_aes = false;
+  // Remove secrets from flash and stack
+  remove_secret(AES_SECRET, AES_KEY_SIZE);
+  remove_secret(ED25519_SECRET, ED25519_PUBLIC_KEY_SIZE);
+}
+#pragma GCC pop_options
+
+// Remove individual secrets from EEPROM
+// Secret should be 4 larger than the size of the secret so it can be word aligned
+void remove_secret(uint8_t* secret, uint32_t size) {
+  // Find the secret in EEPROM
+  bool matches = false;
+  uint8_t* flash_addr;
+  for (uint8_t* addr = 0; (addr < (uint8_t*)0x3FFFF) && !matches; addr++) {
+    if (*addr == secret[0]) {
+      matches = true;
+      for (uint8_t* i = addr; i < addr + size; i++) {
+        if (*i != secret[(int)(i - addr)]) {
+          matches = false;
           break;
         }
       }
-      if (matches_aes) {
-        aes_flash_addr = addr;
-        addr += sizeof(AES_SECRET);
-      }
-    } else if (!matches_ed && *addr == ED25519_SECRET[0]) {
-      for (uint8_t* i = addr; i < addr + sizeof(ED25519_SECRET); i++) {
-        if (*i != ED25519_SECRET[(int)(i - addr)]) {
-          matches_ed = false;
-          break;
-        }
-      }
-      if (matches_ed) {
-        ed_flash_addr = addr;
-        addr += sizeof(ED25519_SECRET);
+      if (matches) {
+        flash_addr = addr;
+        addr += size;
       }
     }
   }
 
-  // Clear the secrets from the stack
-  for (int i = 0; i < sizeof(AES_SECRET); i++) {
-    AES_SECRET[i] = 0xFF;
-  }
-  for (int i = 0; i < sizeof(ED25519_SECRET); i++) {
-    ED25519_SECRET[i] = 0xFF;
+  // Clear the secret from the stack
+  for (int i = 0; i < size + 4; i++) {
+    secret[i] = 0xFF;
   }
 
-  // Remove the secrets from flash
-  int32_t res;
-  res = FlashProgram((uint32_t*)AES_SECRET, (uint32_t)aes_flash_addr, sizeof(AES_SECRET));
-  res |= FlashProgram((uint32_t*)ED25519_SECRET, (uint32_t)ed_flash_addr, sizeof(ED25519_SECRET));
+  // Word align the secret
+  // If not aligned then pad it with the bytes before and after it in flash
+  if ((uint32_t)flash_addr % 4 != 0) {
+    uint32_t mod = (uint32_t)flash_addr % 4;
+    for (flash_addr; (uint32_t)flash_addr % 4 != 0; flash_addr--) {
+      secret[((uint32_t)flash_addr % 4) - 1] = *flash_addr;
+    }
+    for (int i = 0; i < (4 - mod); i++) {
+      secret[size + 3 - i] = flash_addr[size + 3 - i];
+    }
+    size += 4;
+  }
+
+  // Clear the secret from flash
+  int32_t res = FlashProgram((uint32_t*)secret, (uint32_t)flash_addr, size);
   if (res != 0) {
     SysCtlReset();
   }
 }
-#pragma GCC pop_options
 
 uint8_t* read_secrets(void) {
 }
