@@ -42,12 +42,12 @@ def make_bootloader(ed25519_pub_key, aes_key) -> bool:
     status = subprocess.call("make")
     
     # Reset the secrets header file
-    # with open("inc/secret_keys.h", "w") as secrets_header:
-    #     secrets_header.write("// No secrets for you :)\n")
-    #     secrets_header.write("#define ED25519_PUBLIC_KEY {}\n")
-    #     secrets_header.write("#define ED25519_PUBLIC_KEY_SIZE 0\n")
-    #     secrets_header.write("#define AES_KEY {}\n")
-    #     secrets_header.write("#define AES_KEY_SIZE 0\n")
+    with open("inc/secret_keys.h", "w") as secrets_header:
+        secrets_header.write("// No secrets for you :)\n")
+        secrets_header.write("#define ED25519_PUBLIC_KEY {}\n")
+        secrets_header.write("#define ED25519_PUBLIC_KEY_SIZE 0\n")
+        secrets_header.write("#define AES_KEY {}\n")
+        secrets_header.write("#define AES_KEY_SIZE 0\n")
 
     # Return True if make returned 0, otherwise return False.
     return status == 0
