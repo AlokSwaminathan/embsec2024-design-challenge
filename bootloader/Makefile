@@ -63,9 +63,7 @@ wolfssl:
 bootloader: src/bootloader.o
 bootloader: src/startup_gcc.o
 bootloader: src/firmware.o
-
-# src/firmware.o: src/firmware.c
-# 	${CC} ${CFLAGS} -c -o src/firmware.o src/firmware.c
+bootloader: src/secrets.o
 
 bootloader:
 	mkdir -p bin

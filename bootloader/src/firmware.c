@@ -4,11 +4,10 @@
 
 // Variables
 // Firmware Buffer
-unsigned char data[FLASH_PAGESIZE]; 
+unsigned char data[FLASH_PAGESIZE];
 uint16_t *fw_version_address;
 uint16_t *fw_size_address;
 uint8_t *fw_release_message_address;
-
 /*
  * Load the firmware into flash.
  */
@@ -121,4 +120,7 @@ void boot_firmware(void) {
   __asm(
       "LDR R0,=0x10001\n\t"
       "BX R0\n\t");
+}
+
+void decrypt_firmware(uint32_t encrypted_firmware_size) {
 }
