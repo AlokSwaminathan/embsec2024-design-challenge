@@ -35,22 +35,6 @@ void load_firmware(void);
 void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
 
-// Firmware Constants
-#define METADATA_BASE 0xFC00  // base address of version and firmware size in Flash
-#define FW_BASE 0x10000       // base address of firmware in Flash
-
-// FLASH Constants
-#define FLASH_PAGESIZE 1024
-#define FLASH_WRITESIZE 4
-
-// Protocol Constants
-#define OK ((unsigned char)0x00)
-#define RESEND ((unsigned char)0x01)
-#define DONE ((unsigned char)0x02)
-#define ERROR ((unsigned char)0x03)
-
-#define UPDATE ((unsigned char)'U')
-#define BOOT ((unsigned char)'B')
 
 // Delay to allow time to connect GDB
 // green LED as visual indicator of when this function is running
