@@ -4,6 +4,11 @@
 #include "driverlib/eeprom.h"
 #include "secret_keys.h"
 
+void remove_secret(uint8_t* secret, uint32_t size);
+
+// Global Variables
+extern uint8_t data[FLASH_PAGESIZE];
+
 /*
  * Write secrets to EEPROM
  */
@@ -23,8 +28,8 @@ void write_and_remove_secrets(void) {
   }
 
   // Get keys from secrets.h
-  uint8_t AES_SECRET[AES_KEY_SIZE + 4] = AES_KEY;
-  uint8_t ED25519_SECRET[ED25519_PUBLIC_KEY_SIZE + 4] = ED25519_PUBLIC_KEY;
+  volatile uint8_t AES_SECRET[] = AES_KEY;
+  volatile uint8_t ED25519_SECRET[] = ED25519_PUBLIC_KEY;
 
   // Write the secrets to EEPROM
   EEPROMProgram((uint32_t*)AES_SECRET, 0, AES_KEY_SIZE);
@@ -36,10 +41,11 @@ void write_and_remove_secrets(void) {
 }
 #pragma GCC pop_options
 
-// Remove individual secrets from EEPROM
-// Secret should be 4 larger than the size of the secret so it can be word aligned
+// Remove individual secrets from flash
+#pragma GCC push_options
+#pragma GCC optimize("O0")
 void remove_secret(uint8_t* secret, uint32_t size) {
-  // Find the secret in EEPROM
+  // Find the secret in flash
   bool matches = false;
   uint8_t* flash_addr;
   for (uint8_t* addr = 0; (addr < (uint8_t*)0x3FFFF) && !matches; addr++) {
@@ -59,29 +65,40 @@ void remove_secret(uint8_t* secret, uint32_t size) {
   }
 
   // Clear the secret from the stack
-  for (int i = 0; i < size + 4; i++) {
+  for (int i = 0; i < size; i++) {
     secret[i] = 0xFF;
   }
 
-  // Word align the secret
-  // If not aligned then pad it with the bytes before and after it in flash
-  if ((uint32_t)flash_addr % 4 != 0) {
-    uint32_t mod = (uint32_t)flash_addr % 4;
-    for (flash_addr; (uint32_t)flash_addr % 4 != 0; flash_addr--) {
-      secret[((uint32_t)flash_addr % 4) - 1] = *flash_addr;
-    }
-    for (int i = 0; i < (4 - mod); i++) {
-      secret[size + 3 - i] = flash_addr[size + 3 - i];
-    }
-    size += 4;
-  }
-
   // Clear the secret from flash
-  int32_t res = FlashProgram((uint32_t*)secret, (uint32_t)flash_addr, size);
+  int32_t res;
+  uint32_t block_addr = (uint32_t)flash_addr - ((uint32_t)flash_addr % FLASH_PAGESIZE);
+  for (uint32_t i = 0; i < FLASH_PAGESIZE; i++) {
+    if (block_addr + i > (uint32_t)flash_addr && block_addr + i < (uint32_t)flash_addr + size) {
+        data[i] = 0xFF;
+      } else {
+        data[i] = *((uint8_t*)(block_addr + i));
+      }
+  }
+  res = program_flash((void*)block_addr, data, FLASH_PAGESIZE);
   if (res != 0) {
     SysCtlReset();
   }
+  if ((uint32_t)flash_addr + size > block_addr + FLASH_PAGESIZE) {
+    block_addr += FLASH_PAGESIZE;
+    for (uint32_t i = 0; i < FLASH_PAGESIZE; i++) {
+      if (block_addr + i < (uint32_t)flash_addr + size) {
+        data[i] = 0xFF;
+      } else {
+        data[i] = *((uint8_t*)(block_addr + i));
+      }
+    }
+    res = program_flash((void*)block_addr, data, FLASH_PAGESIZE);
+    if (res != 0) {
+      SysCtlReset();
+    }
+  }
 }
+#pragma GCC pop_options
 
 uint8_t* read_secrets(void) {
 }
