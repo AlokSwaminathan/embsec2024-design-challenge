@@ -14,8 +14,6 @@ void load_firmware(void);
 void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
 
-extern uint16_t *fw_version_address;
-extern uint16_t *fw_size_address;
 extern uint8_t *fw_release_message_address;
 
 // Delay to allow time to connect GDB

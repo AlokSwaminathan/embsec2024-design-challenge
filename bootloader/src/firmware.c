@@ -11,8 +11,6 @@
 // Variables
 // Firmware Buffer
 unsigned char data[FLASH_PAGESIZE];
-uint16_t *fw_version_address;
-uint16_t *fw_size_address;
 uint8_t *fw_release_message_address;
 /*
  * Load the firmware into flash.
@@ -119,8 +117,7 @@ void boot_firmware(void) {
   }
 
   // compute the release message address, and then print it
-  uint16_t fw_size = *fw_size_address;
-  fw_release_message_address = (uint8_t *)(FW_BASE + fw_size);
+  uint16_t fw_size = *FW_SIZE_ADDR;
   uart_write_str(UART0, (char *)fw_release_message_address);
 
   // Boot the firmware
@@ -222,4 +219,16 @@ void verify_firmware(uint32_t encrypted_firmware_size) {
 
   // Delete ED25519 public key from memory
   memset(ed25519_public_key, 0xFF, ED25519_PUBLIC_KEY_SIZE);
+}
+
+// Sets the firmware metadata to the appropriate addresses and variables
+// This should only be called after the firmware is loaded, decrypted, and verified, and the version number has been checked
+void set_firmware_metadata(void){
+
+}
+
+// Check the firmware version to see if it is >= the last version
+// If it is 0 just let it go through
+void check_firmware_version(void){
+
 }

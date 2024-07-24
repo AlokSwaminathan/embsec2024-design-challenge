@@ -70,6 +70,10 @@
 #define FW_LOADED 0
 #define FW_ERROR 1
 
+#define FW_VERSION_ADDR (uint16_t*)0x3FC00
+#define FW_SIZE_ADDR (uint16_t*)0x20002
+
+
 typedef struct fw_meta_s {
     uint16_t    ver;                // Version of current fw being loaded
     uint16_t    min_ver;            // Miniumum fw version (not updated when debug fw loaded) 
