@@ -35,7 +35,7 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
 
     # Sign firmware blob using Ed25519
     ed25519_private_key = base64.b64decode(secrets["ed25519_private_key"])
-    ed25519_private_key = ECC.import_key(ed25519_private_key)
+    ed25519_private_key = ECC.import_key(ed25519_private_key, curve_name='ed25519')
     signer = eddsa.new(ed25519_private_key, mode = 'rfc8032')
     signature = signer.sign(firmware_blob)
     signed_firmware_blob = firmware_blob + signature

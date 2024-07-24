@@ -66,7 +66,7 @@ if __name__ == "__main__":
     # Generate Ed25519 keys and encode in base64 if needed
     ed25519_key = ECC.generate(curve='ed25519')
     ed25519_private_key_b64 = base64.b64encode(ed25519_key.export_key(format='PEM').encode('ascii')).decode('ascii')
-    ed25519_public_key = ed25519_key.public_key().export_key(format='PEM').encode('ascii')
+    ed25519_public_key = ed25519_key.public_key().export_key(format='raw')
 
     # Generate AES key and encode in base64
     aes_key = os.urandom(32)
