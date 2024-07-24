@@ -43,7 +43,7 @@ void uart_init(uint8_t uart)
   UARTEnable(uart_base);
 }
 
-void initialize_uarts(){
+void initialize_uarts(void){
   // Enable GPIO Peripherals used by UARTs
   SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA); // UART0
 
