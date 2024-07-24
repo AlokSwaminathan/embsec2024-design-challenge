@@ -124,7 +124,7 @@ void boot_firmware(void) {
 
   // Boot the firmware
   __asm(
-      "LDR R0,=0x10005\n\t"
+      "LDR R0,=0x20005\n\t"
       "BX R0\n\t");
 }
 
