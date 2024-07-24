@@ -6,6 +6,9 @@ LIB=../lib
 INC=./inc
 LDNAME=bootloader.ld
 WOLFSSL=../lib/wolfssl
+LIB_INC=${LIB}/inc
+DRIVERLIB=${LIB}/driverlib
+UART_LIB=${LIB}/uart
 
 DRIVERLIB_ARCHIVE=${LIB}/driverlib/bin/libdriver.a
 UART_ARCHIVE=${LIB}/uart/bin/uart.a
@@ -17,6 +20,9 @@ include ${BOOTLOADER_ROOT}/../makedefs
 CFLAGS+=-I${LIB}
 CFLAGS+=-I${WOLFSSL}
 CFLAGS+=-I${INC}
+CFLAGS+=-I${LIB_INC}
+CFLAGS+=-I${UART_LIB}
+CFLAGS+=-I${DRIVERLIB}
 
 CFLAGS+=-DWOLFSSL_USER_SETTINGS
 
@@ -56,6 +62,8 @@ wolfssl:
 
 bootloader: src/bootloader.o
 bootloader: src/startup_gcc.o
+bootloader: src/firmware.o
+bootloader: src/secrets.o
 
 bootloader:
 	mkdir -p bin

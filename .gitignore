@@ -58,7 +58,8 @@ env.bak/
 venv.bak/
 
 # Secrets template
-bootloader/inc/secrets.h
+bootloader/inc/secret_keys.h
 tools/secret_build_output.txt
 secret_build_output.txt
 *secret*.json
+!bootloader/inc/secrets.h

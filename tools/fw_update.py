@@ -45,7 +45,7 @@ RESP_OK = b"\x00"
 RESP_RESEND = b"\x01"
 RESP_DONE = b"\x02"
 RESP_ERROR = b"\x03"
-FRAME_SIZE = 257
+DEFAULT_FRAME_SIZE = 257
 
 # Define the CRC32 configuration
 crc_config = Configuration(
@@ -97,7 +97,7 @@ def ready_bootloader():
         print("Got non-U character from bootloader.")
     print("Bootloader is ready to recieve firmware.")
 
-def update(ser, infile, debug):
+def update(ser, infile, debug, frame_size):
     # Open serial port. Set baudrate to 115200. Set timeout to 2 seconds.
     with open(infile, "rb") as fp:
         firmware = fp.read()
@@ -105,12 +105,12 @@ def update(ser, infile, debug):
     ready_bootloader()
 
     # Send firmware in frames
-    num_frames = len(firmware) // FRAME_SIZE
-    num_frames -= 1 if len(firmware) % FRAME_SIZE == 0 else 0
-    for i in range(0, len(firmware), FRAME_SIZE):
-        frame = firmware[i:i+FRAME_SIZE]
+    num_frames = len(firmware) // frame_size
+    num_frames -= 1 if len(firmware) % frame_size == 0 else 0
+    for i in range(0, len(firmware), frame_size):
+        frame = firmware[i:i+frame_size]
         send_frame(ser, frame, debug = debug)
-        print(f"Sent frame {i // FRAME_SIZE} of {len(firmware) // FRAME_SIZE}")
+        print(f"Sent frame {i // frame_size} of {len(firmware) // frame_size}")
     
 
     print("Done writing firmware.")
@@ -136,10 +136,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--debug", help = "Enable debugging messages.", action = "store_true")
     
+    parser.add_argument(
+        "--frame-size", help = "Size of each frame to send to the bootloader.", type = int, default = DEFAULT_FRAME_SIZE)
+    
     # Parse the command line arguments
     args = parser.parse_args()
 
     # Call the update function with the parsed arguments
-    update(ser = ser, infile = args.firmware, debug = args.debug)
+    update(ser = ser, infile = args.firmware, debug = args.debug, frame_size= args.frame_size)
     
     ser.close()
