@@ -1,6 +1,11 @@
 #include "firmware.h"
 
+#include <aes.h>
+#include <eeprom.h>
+#include <wolfssl/wolfcrypt/ed25519.h>
+
 #include "bootloader.h"
+#include "secret_keys.h"
 
 // Variables
 // Firmware Buffer
@@ -123,4 +128,101 @@ void boot_firmware(void) {
 }
 
 void decrypt_firmware(uint32_t encrypted_firmware_size) {
+  uint8_t aes_key[AES_KEY_SIZE];
+
+  // Encrypted firmware has IV prepended
+  uint32_t iv[AES_IV_SIZE];
+  uint32_t firmware_size = encrypted_firmware_size - AES_IV_SIZE;
+
+  // Read the AES key from EEPROM
+  EEPROMRead((uint8_t*)aes_key, 0x00, AES_KEY_SIZE);
+
+  // Enable the CCM module and wait for it to be ready
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_CCM0);
+  while (!SysCtlPeripheralReady(SYSCTL_PERIPH_CCM0));
+
+  // Reset the AES module
+  AESReset(AES_BASE);
+
+  // Configure the AES module for decryption in CBC mode with 256-bit key
+  AESConfigSet(AES_BASE, AES_CFG_DIR_DECRYPT | AES_CFG_MODE_CBC | AES_CFG_KEY_SIZE_256BIT);
+
+  // Set the decryption key
+  AESKey1Set(AES_BASE, aes_key, AES_CFG_KEY_SIZE_256BIT);
+
+  // Decrypt the data in 1kB chunks
+  uint8_t *block_addr = FW_BASE;
+  for (int i = 0; i < firmware_size/BLOCK_SIZE; i += BLOCK_SIZE) {
+    // Clone in IV from flash since flash will be overwritten
+    memcpy(iv, block_addr, AES_IV_SIZE);
+
+    // Set the initial value of IV
+    AESIVSet(AES_BASE, iv);
+
+    // Decrypt the firmware
+    if (!AESDataProcess(AES_BASE, (uint32_t*)(block_addr+16), (uint32_t*)data, BLOCK_SIZE)) {
+      SysCtlReset();
+    }
+
+    // Write the decrypted firmware back to flash
+    if (program_flash((void *)block_addr, data, BLOCK_SIZE) != 0) {
+      SysCtlReset();
+    }
+    block_addr += BLOCK_SIZE;
+  }
+
+  // Decrypt last, incomplete block
+  uint32_t last_block_size = firmware_size % BLOCK_SIZE;
+  if (last_block_size > 0) {
+    // Clone in IV from flash since flash will be overwritten
+    memcpy(iv, block_addr, AES_IV_SIZE);
+
+    // Set the initial value of IV
+    AESIVSet(AES_BASE, iv);
+
+    // Decrypt the firmware
+    if (!AESDataProcess(AES_BASE, (uint32_t*)(block_addr+16), (uint32_t*)data, last_block_size)) {
+      SysCtlReset();
+    }
+
+    // Write the decrypted firmware back to flash
+    if (program_flash((void *)block_addr, data, last_block_size) != 0) {
+      SysCtlReset();
+    }
+  }
+
+  // Delete AES key from memory
+  memset(aes_key, 0xFF, AES_KEY_SIZE);
+}
+
+void verify_firmware(uint32_t encrypted_firmware_size) {
+  // Initialize ed25519 key and public key
+  ed25519_key ed25519_key;
+  uint8_t ed25519_public_key[ED25519_PUBLIC_KEY_SIZE];
+  uint8_t signature[ED25519_SIG_SIZE];
+
+  // Read the ED25519 public key from EEPROM
+  EEPROMRead((uint8_t*)ed25519_public_key, AES_KEY_SIZE, ED25519_PUBLIC_KEY_SIZE);
+
+  // Initialize ED25519 public key
+  if (wc_ed25519_init_key(&ed25519_key) != 0) {
+    SysCtlReset();
+  }
+  if (wc_ed25519_import_public((byte *)ed25519_public_key, ED25519_PUBLIC_KEY_SIZE, &ed25519_public_key) != 0) {
+    SysCtlReset();
+  }
+
+  // Verify signature
+  int verified;
+  int ret = wc_ed25519_verify_msg(signature, ED25519_SIG_SIZE, FW_BASE, encrypted_firmware_size-ED25519_SIG_SIZE,
+                                 &verified, &ed25519_public_key);
+  if (ret != 0 || verified != 1) {
+    SysCtlReset();
+  }
+
+  // Free ED25519 key
+  wc_ed25519_free(&ed25519_key);
+
+  // Delete ED25519 public key from memory
+  memset(ed25519_public_key, 0xFF, ED25519_PUBLIC_KEY_SIZE);
 }
