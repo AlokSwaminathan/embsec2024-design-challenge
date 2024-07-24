@@ -3,14 +3,18 @@
 
 #include "bootloader.h"
 
+#include "firmware.h"
 #include "secret_keys.h"
-
+#include "secrets.h"
 
 // Forward Declarations
 void load_firmware(void);
 void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
 
+extern uint16_t *fw_version_address;
+extern uint16_t *fw_size_address;
+extern uint8_t *fw_release_message_address;
 
 // Delay to allow time to connect GDB
 // green LED as visual indicator of when this function is running
@@ -117,8 +121,6 @@ long program_flash(void *page_addr, unsigned char *data, unsigned int data_len) 
     return FlashProgram((unsigned long *)data, (uint32_t)page_addr, data_len);
   }
 }
-
-
 
 void uart_write_hex_bytes(uint8_t uart, uint8_t *start, uint32_t len) {
   for (uint8_t *cursor = start; cursor < (start + len); cursor += 1) {

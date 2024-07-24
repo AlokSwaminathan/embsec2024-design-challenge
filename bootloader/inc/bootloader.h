@@ -80,11 +80,5 @@ typedef struct fw_meta_s {
 
 long program_flash(void* page_addr, unsigned char * data, unsigned int data_len);
 
-// Global Variables
-uint16_t *fw_version_address;
-uint16_t *fw_size_address;
-uint8_t *fw_release_message_address;
-unsigned char data[FLASH_PAGESIZE]; // Firmware Buffer
-
 #endif
 
