@@ -4,7 +4,7 @@
 #include "driverlib/eeprom.h"
 #include "secret_keys.h"
 
-void remove_secret(uint8_t* secret, uint32_t size);
+void remove_secret(volatile uint8_t* secret, uint32_t size);
 
 // Global Variables
 extern uint8_t data[FLASH_PAGESIZE];
@@ -61,7 +61,7 @@ void write_and_remove_secrets(void) {
 // Remove individual secrets from flash
 #pragma GCC push_options
 #pragma GCC optimize("O0")
-void remove_secret(uint8_t* secret, uint32_t size) {
+void remove_secret(volatile uint8_t* secret, uint32_t size) {
   // Find the secret in flash
   bool matches = false;
   uint8_t* flash_addr;
