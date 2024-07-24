@@ -11,7 +11,6 @@
 void load_firmware(void);
 void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
-void write_secrets(void);
 
 extern uint16_t *fw_version_address;
 extern uint16_t *fw_size_address;
@@ -42,7 +41,7 @@ void debug_delay_led() {
 }
 
 int main(void) {
-  write_secrets();
+  write_and_remove_secrets();
 
   // Enable the GPIO port that is used for the on-board LED.
   SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
