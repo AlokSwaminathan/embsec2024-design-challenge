@@ -31,6 +31,23 @@ void write_and_remove_secrets(void) {
   volatile uint8_t AES_SECRET[] = AES_KEY;
   volatile uint8_t ED25519_SECRET[] = ED25519_PUBLIC_KEY;
 
+  bool secrets_valid = false;
+  for (int i = 0; i < AES_KEY_SIZE; i++) {
+    if (AES_SECRET[i] != 0xFF) {
+      secrets_valid = true;
+      break;
+    }
+  }
+  for (int i = 0; i < ED25519_PUBLIC_KEY_SIZE; i++) {
+    if (ED25519_SECRET[i] != 0xFF) {
+      secrets_valid = true;
+      break;
+    }
+  }
+  if (!secrets_valid) {
+    return;
+  }
+
   // Write the secrets to EEPROM
   EEPROMProgram((uint32_t*)AES_SECRET, 0, AES_KEY_SIZE);
   EEPROMProgram((uint32_t*)ED25519_SECRET, AES_KEY_SIZE, ED25519_PUBLIC_KEY_SIZE);
@@ -73,7 +90,7 @@ void remove_secret(uint8_t* secret, uint32_t size) {
   int32_t res;
   uint32_t block_addr = (uint32_t)flash_addr - ((uint32_t)flash_addr % FLASH_PAGESIZE);
   for (uint32_t i = 0; i < FLASH_PAGESIZE; i++) {
-    if (block_addr + i > (uint32_t)flash_addr && block_addr + i < (uint32_t)flash_addr + size) {
+    if (block_addr + i >= (uint32_t)flash_addr && block_addr + i < (uint32_t)flash_addr + size) {
         data[i] = 0xFF;
       } else {
         data[i] = *((uint8_t*)(block_addr + i));

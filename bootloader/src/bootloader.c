@@ -7,6 +7,8 @@
 #include "secret_keys.h"
 #include "secrets.h"
 
+#include "driverlib/eeprom.h"
+
 // Forward Declarations
 void load_firmware(void);
 void boot_firmware(void);
@@ -57,6 +59,19 @@ int main(void) {
   // debug_delay_led();
 
   initialize_uarts();
+
+  uint8_t aes_key[AES_KEY_SIZE];
+  uint8_t ed25519_public_key[ED25519_PUBLIC_KEY_SIZE+1];
+  EEPROMRead((uint32_t *)aes_key, 0, AES_KEY_SIZE);
+  EEPROMRead((uint32_t *)ed25519_public_key, AES_KEY_SIZE, ED25519_PUBLIC_KEY_SIZE);
+  ed25519_public_key[ED25519_PUBLIC_KEY_SIZE] = '\0';
+
+  uart_write_str(UART0, "AES Key: ");
+  uart_write_hex_bytes(UART0, aes_key, AES_KEY_SIZE);
+  nl(UART0);
+  uart_write_str(UART0, "Ed25519 Public Key: ");
+  uart_write_str(UART0, (char *)ed25519_public_key);
+  nl(UART0);
 
   uart_write_str(UART0, "Welcome to the BWSI Vehicle Update Service!\n");
   uart_write_str(UART0, "Send \"U\" to update, and \"B\" to run the firmware.\n");
