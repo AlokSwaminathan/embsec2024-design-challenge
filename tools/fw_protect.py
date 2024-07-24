@@ -49,6 +49,9 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
       signature_hex_string = ' '.join([f'{byte:02x}' for byte in signature])
       print(f"Signature: {signature_hex_string}")
     signed_firmware_blob = firmware_blob + signature
+    if debug:
+      with open("signed_firmware_blob.hex", mode = "wb+") as signed_firmware:
+        signed_firmware.write(signed_firmware_blob)
     print("Ed25519 signature generated.")
 
     # Generate AES key for CBC mode
