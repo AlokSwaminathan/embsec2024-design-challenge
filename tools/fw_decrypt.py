@@ -16,6 +16,9 @@ from Crypto.Signature import eddsa
 from Crypto.Util.Padding import unpad
 import base64
 
+def print_as_hex(data: bytes):
+    print(' '.join([f'{byte:02x}' for byte in data]))
+
 
 def decrypt_firmware(infile: str, outfile: str, secret_file: str):
     #Load firmware binary from infile
@@ -29,9 +32,15 @@ def decrypt_firmware(infile: str, outfile: str, secret_file: str):
     aes_iv = protected_firmware[:16]
     aes_ciphertext = protected_firmware[16:]
     aes_key = base64.b64decode(secrets["aes_key"])
+    
+    print("AES IV:")
+    print_as_hex(aes_iv)
+    
+    print("AES Key:")
+    print_as_hex(aes_key)
 
     #Initiliaze AES key in CBC mode
-    aes = AES.new(aes_key, AES.MODE_CBC, nonce=aes_iv) 
+    aes = AES.new(aes_key, AES.MODE_CBC, IV=aes_iv) 
 
     try:
         signed_firmware_blob = unpad(aes.decrypt(aes_ciphertext), AES.block_size)
@@ -43,7 +52,7 @@ def decrypt_firmware(infile: str, outfile: str, secret_file: str):
     #Extract signature and firmware and verify through ed25519 verification 
     firmware_blob = signed_firmware_blob[:-64]
     signature = signed_firmware_blob[-64:]
-    ed25519_public_key = ECC.import_key(base64.b64decode(secrets["ed25519_public_key"]))
+    ed25519_public_key = ECC.import_key(base64.b64decode(secrets["ed25519_public_key"]),curve_name='ed25519')
     verifier = eddsa.new(ed25519_public_key, mode = 'rfc8032')
     
     try:

@@ -52,10 +52,11 @@ def make_bootloader(ed25519_pub_key, aes_key) -> bool:
     # Return True if make returned 0, otherwise return False.
     return status == 0
 
-def save_to_secrets(ed25519_private_key, aes_key):
+def save_to_secrets(ed25519_private_key,ed25519_public_key, aes_key):
     # Build bootloader and add Ed25519 private key and AES key to JSON file
     json_data = {
         "ed25519_private_key": ed25519_private_key,
+        "ed25519_public_key": ed25519_public_key,
         "aes_key": aes_key
     }
     os.chdir(os.path.join(BOOTLOADER_DIR,"bin/"))
@@ -66,15 +67,16 @@ if __name__ == "__main__":
     # Generate Ed25519 keys and encode in base64 if needed
     ed25519_key = ECC.generate(curve='ed25519')
     ed25519_private_key_b64 = base64.b64encode(ed25519_key.export_key(format='PEM').encode('ascii')).decode('ascii')
-    ed25519_public_key = ed25519_key.public_key().export_key(format='PEM').encode('ascii')
+    ed25519_public_key_b64 = base64.b64encode(ed25519_key.public_key().export_key(format='PEM').encode('ascii')).decode('ascii')
+    ed25519_public_key_raw = ed25519_key.public_key().export_key(format='raw')
 
     # Generate AES key and encode in base64
     aes_key = os.urandom(32)
     aes_key_b64 = base64.b64encode(aes_key).decode('ascii')
 
     # If build successful, save keys to secret file
-    if make_bootloader(ed25519_public_key, aes_key):
-        save_to_secrets(ed25519_private_key_b64, aes_key_b64)
+    if make_bootloader(ed25519_public_key_raw, aes_key):
+        save_to_secrets(ed25519_private_key_b64, ed25519_public_key_b64, aes_key_b64)
         print("Bootloader built successfully. Secrets saved.")
     else:
         print("Failed to build bootloader.")

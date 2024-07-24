@@ -37,8 +37,8 @@
 #define MAX_MSG_LEN 256
 
 // Firmware Constants
-#define METADATA_BASE 0xFC00  // base address of version and firmware size in Flash
-#define FW_BASE 0x10000       // base address of firmware in Flash
+#define METADATA_BASE 0x3FC00  // base address of version and firmware size in Flash
+#define FW_BASE 0x20000       // base address of firmware in Flash
 
 // FLASH Constants
 #define FLASH_PAGESIZE 1024

@@ -663,6 +663,10 @@ extern unsigned int my_rng_seed_gen(void);
 #undef WOLFSSL_IGNORE_FILE_WARN
 #define WOLFSSL_IGNORE_FILE_WARN
 
+// Extra functionality
+#define HAVE_ED25519
+#define WOLFSSL_SHA512
+
 
 #ifdef __cplusplus
 }
