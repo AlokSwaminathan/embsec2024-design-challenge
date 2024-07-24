@@ -184,10 +184,19 @@ void decrypt_firmware(uint32_t encrypted_firmware_size) {
 }
 
 void verify_firmware(uint32_t encrypted_firmware_size) {
+  // Remove IV size
+  encrypted_firmware_size -= AES_IV_SIZE;
+
   // Initialize ed25519 key and public key
   ed25519_key ed25519_key;
   uint8_t ed25519_public_key[ED25519_PUBLIC_KEY_SIZE];
-  uint8_t *signature = (uint8_t *)(FW_BASE + encrypted_firmware_size - ED25519_SIG_SIZE);
+
+  // Find true signature behind padding
+  uint8_t *signature = (uint8_t *)(FW_BASE + encrypted_firmware_size);
+  uint32_t padding_size = *(signature-1);
+  encrypted_firmware_size -= padding_size;
+  signature -= padding_size;
+  signature -= ED25519_SIG_SIZE;
 
   // Read the ED25519 public key from EEPROM
   EEPROMRead((uint32_t *)ed25519_public_key, AES_KEY_SIZE, ED25519_PUBLIC_KEY_SIZE);
