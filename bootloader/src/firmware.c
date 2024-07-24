@@ -146,15 +146,12 @@ void decrypt_firmware(uint32_t encrypted_firmware_size) {
 
   // Decrypt the data in 1kB chunks
   uint8_t *block_addr = (uint8_t *)FW_BASE;
-  for (int i = 0; i < firmware_size / BLOCK_SIZE; i += BLOCK_SIZE) {
-    // Clone in IV from flash since flash will be overwritten
-    memcpy(iv, block_addr, AES_IV_SIZE);
-
+  for (int i = 0; i < firmware_size / BLOCK_SIZE; i++) {
     // Set the initial value of IV
-    wc_AesSetIV(&aes_cbc, iv);
+    wc_AesSetIV(&aes_cbc, block_addr);
 
     // Decrypt the firmware
-    if (wc_AesCbcDecrypt(&aes_cbc, data, (byte *)(block_addr + AES_IV_SIZE), BLOCK_SIZE) != 0) {
+    if (wc_AesCbcDecrypt(&aes_cbc, data, (byte *)((uint32_t)block_addr + AES_IV_SIZE), BLOCK_SIZE) != 0) {
       SysCtlReset();
     }
 
@@ -168,14 +165,11 @@ void decrypt_firmware(uint32_t encrypted_firmware_size) {
   // Decrypt last, incomplete block
   uint32_t last_block_size = firmware_size % BLOCK_SIZE;
   if (last_block_size > 0) {
-    // Clone in IV from flash since flash will be overwritten
-    memcpy(iv, block_addr, AES_IV_SIZE);
-
     // Set the initial value of IV
-    wc_AesSetIV(&aes_cbc, iv);
+    wc_AesSetIV(&aes_cbc, block_addr);
 
     // Decrypt the firmware
-    if (wc_AesCbcDecrypt(&aes_cbc, data, (byte *)(block_addr + AES_IV_SIZE), last_block_size) != 0) {
+    if (wc_AesCbcDecrypt(&aes_cbc, data, (byte *)((uint32_t)block_addr + AES_IV_SIZE), last_block_size) != 0) {
       SysCtlReset();
     }
 
