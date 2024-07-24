@@ -1,8 +1,13 @@
 #include "firmware.h"
 
 #include "bootloader.h"
-#include <uart.h>
-#include <hw_memmap.h>
+
+// Variables
+// Firmware Buffer
+unsigned char data[FLASH_PAGESIZE]; 
+uint16_t *fw_version_address;
+uint16_t *fw_size_address;
+uint8_t *fw_release_message_address;
 
 /*
  * Load the firmware into flash.

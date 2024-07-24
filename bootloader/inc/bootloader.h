@@ -8,6 +8,31 @@
 #include <stdint.h>
 #include <string.h>
 
+// Hardware Imports
+#include "inc/hw_memmap.h"     // Peripheral Base Addresses
+#include "inc/hw_types.h"      // Boolean type
+#include "inc/tm4c123gh6pm.h"  // Peripheral Bit Masks and Registers
+// #include "inc/hw_ints.h" // Interrupt numbers
+
+// Driver API Imports
+#include "driverlib/flash.h"      // FLASH API
+#include "driverlib/interrupt.h"  // Interrupt API
+#include "driverlib/sysctl.h"     // System control API (clock/reset)
+
+// Application Imports
+#include "driverlib/gpio.h"
+#include "driverlib/uart.h"
+#include "uart/uart.h"
+
+// Cryptography Imports
+#include "wolfssl/wolfcrypt/aes.h"
+#include "wolfssl/wolfcrypt/rsa.h"
+#include "wolfssl/wolfcrypt/settings.h"
+#include "wolfssl/wolfcrypt/sha.h"
+
+// Checksum Imports
+#include "driverlib/sw_crc.h"
+
 #define IV_LEN 16
 #define MAX_MSG_LEN 256
 
