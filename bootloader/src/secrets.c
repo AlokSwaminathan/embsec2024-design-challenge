@@ -99,6 +99,3 @@ void remove_secret(uint8_t* secret, uint32_t size) {
   }
 }
 #pragma GCC pop_options
-
-uint8_t* read_secrets(void) {
-}
