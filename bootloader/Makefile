@@ -66,7 +66,10 @@ bootloader: build/firmware.o
 bootloader: build/secrets.o
 bootloader: build/util.o
 
-build/%.o: src/%.c
+build:
+	mkdir -p build
+
+build/%.o: src/%.c | build
 	${CC} ${CFLAGS} -c $< -o $@
 
 bootloader:
