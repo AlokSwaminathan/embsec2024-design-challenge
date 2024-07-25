@@ -58,10 +58,20 @@ crc_config = Configuration(
 )
 crc32 = Calculator(crc_config)
 
+# Set up waiting for bootloader be ready when it has to program flash
+running_total = 0
+FLASH_PAGESIZE = 1024
+
 def send_frame(ser, frame, debug = False):
     ser.write(p16(len(frame), endian = 'little'))  # Write the frame length
     
-    ser.write(frame)  # Write the frame data
+    if (running_total % FLASH_PAGESIZE == 0 or running_total//FLASH_PAGESIZE != (running_total + len(frame))//FLASH_PAGESIZE):
+      end_amt = (running_total+ len(frame)) % FLASH_PAGESIZE
+      ser.write(frame[:-end_amt])
+      time.sleep(0.1)
+      ser.write(frame[-end_amt:])
+    else:
+      ser.write(frame)
     
     checksum = p32(crc32.checksum(frame),endian = 'little')
     
@@ -75,7 +85,7 @@ def send_frame(ser, frame, debug = False):
     resp = ser.read(1)  # Wait for an OK from the bootloader
 
     # Tenatively keep this line, idk why its here though
-    # time.sleep(0.1)
+    time.sleep(0.1)
 
         # Check if debugging is enabled
     if debug:
