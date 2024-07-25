@@ -23,4 +23,4 @@ void uart_write(uint8_t uart, uint32_t data);
 void uart_write_hex(uint8_t uart, uint32_t data);
 void uart_write_str(uint8_t uart, char *str);
 void nl(uint8_t uart);
-void initialize_uarts();
+void initialize_uarts(void);

@@ -38,6 +38,7 @@
 //*****************************************************************************
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifndef __DRIVERLIB_AES_H__
 #define __DRIVERLIB_AES_H__
