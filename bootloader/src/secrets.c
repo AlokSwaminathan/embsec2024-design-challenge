@@ -4,7 +4,7 @@
 #include "driverlib/eeprom.h"
 #include "secret_keys.h"
 
-void remove_secret(volatile uint8_t* secret, uint32_t size);
+void remove_secret(volatile uint8_t*, uint32_t);
 
 // Global Variables
 extern uint8_t data[FLASH_PAGESIZE];

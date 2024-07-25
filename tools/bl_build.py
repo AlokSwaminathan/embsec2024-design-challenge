@@ -20,7 +20,26 @@ import base64
 REPO_ROOT = pathlib.Path(__file__).parent.parent.absolute()
 BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
 
+# Define bootloader binary padding
+TARGET_SIZE = 256 * 1024
+VERSION_OFFSET = 0x3FC00
+DEFAULT_VERSION = b'\x00\x00'
 
+# Pad binary to 256kb so all flash is under control
+# Then set the start of the last block to store a firmware version of 0x0000
+def pad_bootloader_binary():
+  file_path = 'bin/bootloader.bin'
+  with open(file_path, "rb+") as bootloader:
+    current_size = os.path.getsize(file_path)
+    bytes_left = TARGET_SIZE - current_size
+    
+    if bytes_left > 0:
+      bootloader.seek(0,os.SEEK_END)
+      bootloader.write(b'\xFF' * bytes_left)
+
+    bootloader.seek(VERSION_OFFSET)
+    bootloader.write(DEFAULT_VERSION)
+      
 def padded_uint8t_array(key):
     char_array = "{" + ", ".join([f"0x{b:02x}" for b in key])
     padding = ['0x00' for _ in range(0, 4 - (len(key) % 4))] if len(key) % 4 != 0 else []
@@ -40,6 +59,9 @@ def make_bootloader(ed25519_pub_key, aes_key) -> bool:
     # Clean current directory to build bootloader
     subprocess.call("make clean", shell=True)
     status = subprocess.call("make")
+
+    if status != 0:
+        return False
     
     # Reset the secrets header file
     with open("inc/secret_keys.h", "w") as secrets_header:
@@ -48,6 +70,8 @@ def make_bootloader(ed25519_pub_key, aes_key) -> bool:
         secrets_header.write("#define ED25519_PUBLIC_KEY_SIZE 0\n")
         secrets_header.write("#define AES_KEY {}\n")
         secrets_header.write("#define AES_KEY_SIZE 0\n")
+
+    pad_bootloader_binary()
 
     # Return True if make returned 0, otherwise return False.
     return status == 0

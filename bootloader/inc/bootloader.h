@@ -8,6 +8,9 @@
 #include <stdint.h>
 #include <string.h>
 
+// Import util functions
+#include "util.h"
+
 // Hardware Imports
 #include "inc/hw_memmap.h"     // Peripheral Base Addresses
 #include "inc/hw_types.h"      // Boolean type
@@ -38,7 +41,8 @@
 
 // Firmware Constants
 #define METADATA_BASE 0x3FC00  // base address of version and firmware size in Flash
-#define FW_BASE 0x20000       // base address of firmware in Flash
+#define FW_TEMP_BASE 0x30000   // temporary firmware storage location
+#define FW_BASE 0x20000        // final firmware storage location
 
 // FLASH Constants
 #define FLASH_PAGESIZE 1024
@@ -54,14 +58,14 @@
 #define BOOT ((unsigned char)'B')
 
 // Data buffer sizes
-#define META_LEN 22 // Excludes message bytes
+#define META_LEN 22  // Excludes message bytes
 #define IV_LEN 16
 #define MAX_MSG_LEN 256
 #define BLOCK_SIZE FLASH_PAGESIZE
 #define SIG_SIZE 256
 #define CHUNK_SIZE (BLOCK_SIZE + SIG_SIZE)
 
-#define MAX_CHUNK_NO 32 // 30KB firmware + padding
+#define MAX_CHUNK_NO 32  // 30KB firmware + padding
 
 // Return messages
 #define VERIFY_SUCCESS 0
@@ -70,15 +74,19 @@
 #define FW_LOADED 0
 #define FW_ERROR 1
 
+#define FW_VERSION_ADDR 0x3FC00
+#define FW_RELEASE_MESSAGE_ADDR 0x3FC02
+
+#define VERSION_LEN 2
+#define FIRMWARE_SIZE_LEN 2
+#define INITIAL_METADATA_LEN 4
+
 typedef struct fw_meta_s {
-    uint16_t    ver;                // Version of current fw being loaded
-    uint16_t    min_ver;            // Miniumum fw version (not updated when debug fw loaded) 
-    uint16_t    chunks;             // Length of fw in 1kb chunks
-    uint16_t    msgLen;             // Length of fw message in bytes
-    uint8_t     msg[MAX_MSG_LEN];   // fw release message
+  uint16_t ver;              // Version of current fw being loaded
+  uint16_t min_ver;          // Miniumum fw version (not updated when debug fw loaded)
+  uint16_t chunks;           // Length of fw in 1kb chunks
+  uint16_t msgLen;           // Length of fw message in bytes
+  uint8_t msg[MAX_MSG_LEN];  // fw release message
 } fw_meta_st;
 
-long program_flash(void* page_addr, unsigned char * data, unsigned int data_len);
-
 #endif
-

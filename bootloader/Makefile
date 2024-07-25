@@ -60,13 +60,18 @@ WOLFSSL_MAKE_ARGS = TOOLCHAIN=$(TOOLCHAIN) \
 wolfssl:
 	make -C ${WOLFSSL}/IDE/GCC-ARM $(WOLFSSL_MAKE_ARGS)
 
-bootloader: src/bootloader.o
-bootloader: src/startup_gcc.o
-bootloader: src/firmware.o
-bootloader: src/secrets.o
+bootloader: build/bootloader.o
+bootloader: build/startup_gcc.o
+bootloader: build/firmware.o
+bootloader: build/secrets.o
+bootloader: build/util.o
+
+build/%.o: src/%.c
+	${CC} ${CFLAGS} -c $< -o $@
 
 bootloader:
 	mkdir -p bin
+	mkdir -p build
 	${LD} -T ${LDNAME} --entry ResetISR ${LDFLAGS} -o bin/bootloader.axf $(filter %.o %.a, ${^}) ${LIB}/driverlib/bin/aes.o ${LIB}/driverlib/bin/can.o ${LIB}/driverlib/bin/comp.o ${LIB}/driverlib/bin/cpu.o ${LIB}/driverlib/bin/crc.o ${LIB}/driverlib/bin/des.o ${LIB}/driverlib/bin/eeprom.o ${LIB}/driverlib/bin/emac.o ${LIB}/driverlib/bin/epi.o ${LIB}/driverlib/bin/flash.o ${LIB}/driverlib/bin/fpu.o ${LIB}/driverlib/bin/gpio.o ${LIB}/driverlib/bin/hibernate.o ${LIB}/driverlib/bin/i2c.o ${LIB}/driverlib/bin/interrupt.o ${LIB}/driverlib/bin/lcd.o ${LIB}/driverlib/bin/mpu.o ${LIB}/driverlib/bin/onewire.o ${LIB}/driverlib/bin/pwm.o ${LIB}/driverlib/bin/qei.o ${LIB}/driverlib/bin/shamd5.o ${LIB}/driverlib/bin/ssi.o ${LIB}/driverlib/bin/sw_crc.o ${LIB}/driverlib/bin/sysctl.o ${LIB}/driverlib/bin/sysexc.o ${LIB}/driverlib/bin/systick.o ${LIB}/driverlib/bin/timer.o ${LIB}/driverlib/bin/uart.o ${LIB}/driverlib/bin/udma.o ${LIB}/driverlib/bin/usb.o ${LIB}/driverlib/bin/watchdog.o ${UART_ARCHIVE} ${WOLFSSL_ARCHIVE} '${LIBM}' '${LIBC}' '${LIBGCC}'
 	${OBJCOPY} -O binary bin/bootloader.axf bin/bootloader.bin
 
@@ -75,6 +80,7 @@ clean:
 	make -C ${LIB}/uart clean
 	make -C ${WOLFSSL}/IDE/GCC-ARM clean
 	rm -rf bin/*
+	rm -rf build/*
 	rm -rf src/*.o
 	rm -rf src/*.d
 	
