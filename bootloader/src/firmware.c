@@ -10,7 +10,7 @@
 
 // Variables
 // Firmware Buffer
-volatile unsigned char data[FLASH_PAGESIZE];
+unsigned char data[FLASH_PAGESIZE];
 // Padding amount for firmware
 uint8_t firmware_padding_size;
 
@@ -243,6 +243,7 @@ void verify_firmware(uint32_t encrypted_firmware_size) {
 // Sets the firmware metadata to the appropriate addresses and variables
 // This should only be called after the firmware is loaded, decrypted, and verified, the version number has been checked, and the firmware has been finalized
 void set_firmware_metadata(uint32_t encrypted_firmware_size) {
+  uint16_t version = *(uint16_t *)(FW_TEMP_BASE);
   uint16_t size = *(uint16_t *)(FW_TEMP_BASE + VERSION_LEN);
   uint8_t *fw_release_message_address = (uint8_t *)(FW_TEMP_BASE + INITIAL_METADATA_LEN + size);
   uint32_t fw_release_message_size = encrypted_firmware_size - firmware_padding_size - size - 4;
@@ -250,11 +251,14 @@ void set_firmware_metadata(uint32_t encrypted_firmware_size) {
     fw_release_message_size = MAX_MSG_LEN;
   }
 
-  if (__FW_IS_DEBUG) {
+  bool is_debug = (version == 0);
+
+  if (is_debug) {
     memcpy(data, (uint8_t *)FW_VERSION_ADDR, VERSION_LEN);
     data[1023] = DEBUG_BYTE;
   } else {
     memcpy(data, (uint8_t *)FW_TEMP_BASE, VERSION_LEN);
+    data[1023] = DEFAULT_BYTE;
   }
   memcpy(data + VERSION_LEN, fw_release_message_address, fw_release_message_size);
 
@@ -269,12 +273,7 @@ void check_firmware_version(void) {
   uint16_t ver = *(uint16_t *)FW_TEMP_BASE;
   uint16_t last_ver = *(uint16_t *)FW_VERSION_ADDR;
 
-  if (ver == 0) {
-    ver = last_ver;
-    set_firmware_debug(true);
-    return;
-  } else if (ver >= last_ver) {
-    set_firmware_debug(false);
+  if (ver == 0 || ver >= last_ver) {
     return;
   } else if (ver < last_ver) {
     SysCtlReset();
@@ -292,21 +291,5 @@ void finalize_firmware(void) {
   }
   for (uint32_t i = 0; i < blocks; i++) {
     program_flash((void *)(FW_BASE + i * FLASH_PAGESIZE), (uint8_t *)(FW_TEMP_BASE + 4 + i * FLASH_PAGESIZE), FLASH_PAGESIZE);
-  }
-}
-
-void set_firmware_debug(bool debug) {
-  uint8_t debug_byte = debug ? DEBUG_BYTE : DEFAULT_BYTE;
-  if ((debug && __FW_IS_DEBUG) || (!debug && !__FW_IS_DEBUG)) {
-    return;
-  }
-  uint8_t *base_addr = (uint8_t *)FW_DEBUG_ADDR - ((uint32_t)FW_DEBUG_ADDR % FLASH_PAGESIZE);
-  for (uint8_t *addr = base_addr; addr < base_addr + FLASH_PAGESIZE; addr++) {
-    data[addr - base_addr] = *addr;
-  }
-  data[FW_DEBUG_ADDR % FLASH_PAGESIZE] = debug_byte;
-  long ret = program_flash((void *)base_addr, data, FLASH_PAGESIZE);
-  if (ret != 0) {
-    SysCtlReset();
   }
 }
