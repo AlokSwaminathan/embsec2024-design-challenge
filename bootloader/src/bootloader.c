@@ -12,8 +12,6 @@
 // Forward Declarations
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
 
-extern uint8_t *fw_release_message_address;
-
 // Delay to allow time to connect GDB
 // green LED as visual indicator of when this function is running
 void debug_delay_led() {
@@ -69,7 +67,8 @@ int main(void) {
       decrypt_firmware(encrypted_fw_size);
       verify_firmware(encrypted_fw_size); 
       check_firmware_version();
-      set_firmware_metadata();
+      finalize_firmware();
+      set_firmware_metadata(encrypted_fw_size);
       uart_write_str(UART0, "Loaded new firmware.\n");
       nl(UART0);
     } else if (instruction == BOOT) {

@@ -38,7 +38,8 @@
 
 // Firmware Constants
 #define METADATA_BASE 0x3FC00  // base address of version and firmware size in Flash
-#define FW_BASE 0x20000        // base address of firmware in Flash
+#define FW_TEMP_BASE 0x30000   // temporary firmware storage location
+#define FW_BASE 0x20000        // final firmware storage location
 
 // FLASH Constants
 #define FLASH_PAGESIZE 1024
@@ -71,6 +72,11 @@
 #define FW_ERROR 1
 
 #define FW_VERSION_ADDR 0x3FC00
+#define FW_RELEASE_MESSAGE_ADDR 0x3FC02
+
+#define VERSION_LEN 2
+#define FIRMWARE_SIZE_LEN 2
+#define INITIAL_METADATA_LEN 4
 
 typedef struct fw_meta_s {
   uint16_t ver;              // Version of current fw being loaded

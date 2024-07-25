@@ -11,7 +11,9 @@
 // Variables
 // Firmware Buffer
 unsigned char data[FLASH_PAGESIZE];
-uint8_t *fw_release_message_address;
+// Padding amount for firmware
+uint8_t firmware_padding_size;
+
 /*
  * Load the firmware into flash.
  */
@@ -22,7 +24,7 @@ uint32_t load_firmware(void) {
   uint32_t total_length = 0;
 
   uint32_t data_index = 0;
-  uint32_t page_addr = FW_BASE;
+  uint32_t page_addr = FW_TEMP_BASE;
 
   uint32_t calc_crc = 0;
   uint32_t recv_crc = 0;
@@ -115,11 +117,11 @@ void boot_firmware(void) {
   }
 
   // Write the firmware release message
-  uart_write_str(UART0, (char *)fw_release_message_address);
+  uart_write_str(UART0, (char *)FW_RELEASE_MESSAGE_ADDR);
 
   // Boot the firmware
   __asm(
-      "LDR R0,=0x20005\n\t"
+      "LDR R0,=0x20001\n\t"
       "BX R0\n\t");
 }
 
@@ -136,10 +138,10 @@ void decrypt_firmware(uint32_t encrypted_firmware_size) {
   wc_AesInit(&aes_cbc, NULL, INVALID_DEVID);
 
   // Set the AES key
-  wc_AesSetKey(&aes_cbc, aes_key, AES_KEY_SIZE,(byte*)FW_BASE, AES_DECRYPTION);
+  wc_AesSetKey(&aes_cbc, aes_key, AES_KEY_SIZE,(byte*)FW_TEMP_BASE, AES_DECRYPTION);
 
   // Decrypt the data in 1kB chunks
-  uint8_t *block_addr = (uint8_t *)FW_BASE;
+  uint8_t *block_addr = (uint8_t *)FW_TEMP_BASE;
   for (int i = 0; i < firmware_size / BLOCK_SIZE; i++) {
     // Set the initial value of IV
     wc_AesSetIV(&aes_cbc, block_addr);
@@ -186,10 +188,10 @@ void verify_firmware(uint32_t encrypted_firmware_size) {
   uint8_t ed25519_public_key[ED25519_PUBLIC_KEY_SIZE];
 
   // Find true signature behind padding
-  uint8_t *signature = (uint8_t *)(FW_BASE + encrypted_firmware_size);
-  uint32_t padding_size = *(signature-1);
-  encrypted_firmware_size -= padding_size;
-  signature -= padding_size;
+  uint8_t *signature = (uint8_t *)(FW_TEMP_BASE + encrypted_firmware_size);
+  firmware_padding_size = *(signature-1);
+  encrypted_firmware_size -= firmware_padding_size;
+  signature -= firmware_padding_size;
   signature -= ED25519_SIG_SIZE;
 
   // Read the ED25519 public key from EEPROM
@@ -205,7 +207,7 @@ void verify_firmware(uint32_t encrypted_firmware_size) {
 
   // Verify signature
   int verified;
-  int ret = wc_ed25519_verify_msg(signature, ED25519_SIG_SIZE, (byte *)FW_BASE, encrypted_firmware_size - ED25519_SIG_SIZE,
+  int ret = wc_ed25519_verify_msg(signature, ED25519_SIG_SIZE, (byte *)FW_TEMP_BASE, encrypted_firmware_size - ED25519_SIG_SIZE,
                                   &verified, &ed25519_key);
   if (ret != 0 || verified != 1) {
     SysCtlReset();
@@ -219,20 +221,26 @@ void verify_firmware(uint32_t encrypted_firmware_size) {
 }
 
 // Sets the firmware metadata to the appropriate addresses and variables
-// This should only be called after the firmware is loaded, decrypted, and verified, and the version number has been checked
-void set_firmware_metadata(void){
-  uint16_t version = *(uint16_t*)(FW_BASE); 
-  uint16_t size = *(uint16_t*)(FW_BASE + 2); 
-  fw_release_message_address = (uint8_t*)(FW_BASE + 2 + size); 
+// This should only be called after the firmware is loaded, decrypted, and verified, the version number has been checked, and the firmware has been finalized
+void set_firmware_metadata(uint32_t encrypted_firmware_size) {
+  uint16_t version = *(uint16_t*)(FW_TEMP_BASE); 
+  uint16_t size = *(uint16_t*)(FW_TEMP_BASE + VERSION_LEN); 
+  uint8_t *fw_release_message_address = (uint8_t*)(FW_TEMP_BASE + INITIAL_METADATA_LEN + size);
+  uint32_t fw_release_message_size = encrypted_firmware_size - firmware_padding_size - size - 4;
+
+  uint8_t metadata[VERSION_LEN + fw_release_message_size];
+  memcpy(metadata, (uint8_t*)FW_TEMP_BASE, VERSION_LEN);
+  memcpy(metadata + VERSION_LEN, fw_release_message_address, fw_release_message_size);
   
   // Write the version to permanent location in flash
-  program_flash((void*)FW_VERSION_ADDR, (uint8_t*)&version, 2);
+  program_flash((void*)FW_VERSION_ADDR, metadata, sizeof(metadata));
 }
 
 // Check the firmware version to see if it is >= the last version
 // If it is 0 just let it go through
+// If it is less than the last version, reset the device
 void check_firmware_version(void){
-  uint16_t ver = *(uint16_t*)FW_BASE;
+  uint16_t ver = *(uint16_t*)FW_TEMP_BASE;
   uint16_t last_ver =  *(uint16_t*)FW_VERSION_ADDR;
   
   if(ver == 0 || ver >= last_ver){
@@ -240,5 +248,19 @@ void check_firmware_version(void){
   }
   else if(ver < last_ver){
     SysCtlReset();
+  }
+}
+
+// Take the firmware and write it to the final firmware location in flash where it will be booted from
+// This should only be called after the firmware is loaded, decrypted, and verified, and the version number has been checked
+void finalize_firmware(void){
+  uint32_t firmware_size = (uint32_t)(*(uint16_t*)(FW_TEMP_BASE + 2));
+
+  uint32_t blocks = firmware_size / FLASH_PAGESIZE;
+  if (firmware_size % FLASH_PAGESIZE != 0) {
+    blocks++;
+  }
+  for (uint32_t i = 0; i < blocks; i++){
+    program_flash((void*)(FW_BASE + i * FLASH_PAGESIZE), (uint8_t*)(FW_TEMP_BASE + 4 + i * FLASH_PAGESIZE), FLASH_PAGESIZE);
   }
 }
