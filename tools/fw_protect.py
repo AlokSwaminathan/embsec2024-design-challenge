@@ -78,16 +78,16 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
         protected_binary.write(protected_firmware)
 
 
-def parse_args(secrets="secret_build_output.json"):
+def parse_args():
     parser = argparse.ArgumentParser(description = "Firmware Protection Tool")
     parser.add_argument(
         "--infile", help = "Path to the firmware image to protect.", required = True)
     parser.add_argument(
         "--outfile", help = "Filename for the output firmware.", required = True)
     parser.add_argument(
-        "--version", help = "Version number of this firmware.", required = True, type = int)
+        "--version", help = "Version number of this firmware.", default = 0, type = int)
     parser.add_argument(
-        "--message", help = "Release message for this firmware.", required = True, type = str)
+        "--message", help = "Release message for this firmware.", default = "default message", type = str)
     parser.add_argument(
         "--secrets", help = "Path to the secrets json file.", default = REPO_ROOT/"secret_build_outputs.json")
     parser.add_argument(
