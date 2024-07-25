@@ -35,6 +35,7 @@ from crc import Calculator, Configuration
 
 from util import *
 
+# Check what platform, if Darwin use a mac config and otherwise use the linux one
 if platform.system() == 'Darwin':
     ser = serial.Serial("/dev/tty.usbmodem0E23AD551", 115200)
 else:
@@ -78,14 +79,11 @@ def send_frame(ser, frame, debug = False):
     print(f"Checksum: {checksum}") if debug else None
     ser.write(checksum)  # Write the frame checksum
 
-    if debug: #remember to remove later ❗❗❗❗❗❗
+    if debug:
         print(f"Frame size: {len(frame)}")
         print_hex(frame)
 
     resp = ser.read(1)  # Wait for an OK from the bootloader
-
-    # Tenatively keep this line, idk why its here though
-    # time.sleep(0.1)
 
         # Check if debugging is enabled
     if debug:
@@ -103,6 +101,8 @@ def send_frame(ser, frame, debug = False):
 def ready_bootloader():
     ser.write(b'U')
     print("Waiting for bootloader to enter update mode")
+
+    # wait for response from tiva board
     while ser.read(1).decode('ascii') != 'U':
         print("Got non-U character from bootloader.")
     print("Bootloader is ready to recieve firmware.")
@@ -134,6 +134,7 @@ def update(ser, infile, debug, frame_size):
     print(f"Wrote zero length frame (2 bytes) and finished writing firmware")
 
     return ser
+
 import argparse
 
 if __name__ == "__main__":
