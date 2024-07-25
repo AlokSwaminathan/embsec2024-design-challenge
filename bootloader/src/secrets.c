@@ -49,12 +49,14 @@ void write_and_remove_secrets(void) {
   }
 
   // Write the secrets to EEPROM
-  EEPROMProgram((uint32_t*)AES_SECRET, 64, AES_KEY_SIZE);
-  EEPROMProgram((uint32_t*)ED25519_SECRET,128, ED25519_PUBLIC_KEY_SIZE);
+  EEPROMProgram((uint32_t*)AES_SECRET, AES_KEY_EEPROM_ADDR, AES_KEY_SIZE);
+  EEPROMProgram((uint32_t*)ED25519_SECRET,ED25519_PUBLIC_KEY_EEPROM_ADDR, ED25519_PUBLIC_KEY_SIZE);
 
   // Remove secrets from flash and stack
   remove_secret(AES_SECRET, AES_KEY_SIZE);
   remove_secret(ED25519_SECRET, ED25519_PUBLIC_KEY_SIZE);
+
+  SysCtlReset();
 }
 #pragma GCC pop_options
 

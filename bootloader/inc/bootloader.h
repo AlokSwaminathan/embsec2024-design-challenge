@@ -41,9 +41,25 @@
 #define FW_TEMP_BASE 0x30000   // temporary firmware storage location
 #define FW_BASE 0x20000        // final firmware storage location
 
+#define FW_VERSION_ADDR 0x3FC00
+#define FW_RELEASE_MESSAGE_ADDR 0x3FC02
+#define FW_DEBUG_ADDR 0x3FFFF
+#define __FW_IS_DEBUG ((*((uint8_t *)FW_DEBUG_ADDR) & 0x01)==0x0)
+#define DEBUG_BYTE 0xFE
+#define DEFAULT_BYTE 0xFF
+
+#define VERSION_LEN 2
+#define FIRMWARE_SIZE_LEN 2
+#define INITIAL_METADATA_LEN 4
+
 // FLASH Constants
 #define FLASH_PAGESIZE 1024
 #define FLASH_WRITESIZE 4
+
+// EEPROM Constants
+#define EEPROM_BLOCK_SIZE 0x40
+#define AES_KEY_EEPROM_ADDR EEPROM_BLOCK_SIZE
+#define ED25519_PUBLIC_KEY_EEPROM_ADDR EEPROM_BLOCK_SIZE*2  
 
 // Protocol Constants
 #define OK ((unsigned char)0x00)
@@ -71,16 +87,7 @@
 #define FW_LOADED 0
 #define FW_ERROR 1
 
-#define FW_VERSION_ADDR 0x3FC00
-#define FW_RELEASE_MESSAGE_ADDR 0x3FC02
-#define FW_DEBUG_ADDR 0x3FFFF
-#define __FW_IS_DEBUG ((*((uint8_t *)FW_DEBUG_ADDR) & 0x01)==0x0)
-#define DEBUG_BYTE 0xFE
-#define DEFAULT_BYTE 0xFF
 
-#define VERSION_LEN 2
-#define FIRMWARE_SIZE_LEN 2
-#define INITIAL_METADATA_LEN 4
 
 typedef struct fw_meta_s {
   uint16_t ver;              // Version of current fw being loaded
