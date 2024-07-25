@@ -49,6 +49,12 @@ uint32_t load_firmware(void) {
     // Get the number of bytes specified
     for (int i = 0; i < frame_length; i++) {
       if (data_index >= FLASH_PAGESIZE) {
+        if (page_addr - FW_TEMP_BASE >= MAX_CHUNK_NO * FLASH_PAGESIZE) {
+          uart_write(UART0, ERROR);
+          while (UARTBusy(UART0_BASE)) {
+          };
+          SysCtlReset();
+        }
         int32_t res = program_flash((void *)page_addr, data, data_index);
         if (res != 0) {
           uart_write(UART0, ERROR);
@@ -238,6 +244,9 @@ void set_firmware_metadata(uint32_t encrypted_firmware_size) {
   uint16_t size = *(uint16_t*)(FW_TEMP_BASE + VERSION_LEN); 
   uint8_t *fw_release_message_address = (uint8_t*)(FW_TEMP_BASE + INITIAL_METADATA_LEN + size);
   uint32_t fw_release_message_size = encrypted_firmware_size - firmware_padding_size - size - 4;
+  if (fw_release_message_size > MAX_MSG_LEN) {
+    fw_release_message_size = MAX_MSG_LEN;
+  }
 
   uint8_t metadata[VERSION_LEN + fw_release_message_size];
   memcpy(metadata, (uint8_t*)FW_TEMP_BASE, VERSION_LEN);
