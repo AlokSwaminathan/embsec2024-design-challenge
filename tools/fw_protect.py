@@ -86,7 +86,7 @@ def parse_args():
     parser.add_argument(
         "--message", help = "Release message for this firmware.", required = True)
     parser.add_argument(
-        "--secrets", help = "Path to the secrets json file.", required = True)
+        "--secrets", help = "Path to the secrets json file.", default = "secret_build_output.json", required = True)
     parser.add_argument(
         "--debug", help = "Enable debugging messages.", action = "store_true"
     )
