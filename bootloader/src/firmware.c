@@ -112,12 +112,23 @@ void boot_firmware(void) {
 
   if (!fw_present) {
     uart_write_str(UART0, "No firmware loaded.\n");
+    while (UARTBusy(UART0_BASE)) {
+    };
     SysCtlReset();  // Reset device
     return;
   }
 
+  // Write the firmware version
+  uart_write_str(UART0, "Firmware version: ");
+  uart_write_unsigned_short(UART0, *(uint16_t *)FW_VERSION_ADDR);
+  nl(UART0);
+
   // Write the firmware release message
   uart_write_str(UART0, (char *)FW_RELEASE_MESSAGE_ADDR);
+  nl(UART0);
+
+  while (UARTBusy(UART0_BASE)) {
+  };
 
   // Boot the firmware
   __asm(

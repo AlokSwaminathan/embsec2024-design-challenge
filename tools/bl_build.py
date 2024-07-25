@@ -59,6 +59,9 @@ def make_bootloader(ed25519_pub_key, aes_key) -> bool:
     # Clean current directory to build bootloader
     subprocess.call("make clean", shell=True)
     status = subprocess.call("make")
+
+    if status != 0:
+        return False
     
     # Reset the secrets header file
     with open("inc/secret_keys.h", "w") as secrets_header:

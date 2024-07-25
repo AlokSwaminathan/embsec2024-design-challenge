@@ -8,6 +8,9 @@
 #include <stdint.h>
 #include <string.h>
 
+// Import util functions
+#include "util.h"
+
 // Hardware Imports
 #include "inc/hw_memmap.h"     // Peripheral Base Addresses
 #include "inc/hw_types.h"      // Boolean type
@@ -85,7 +88,5 @@ typedef struct fw_meta_s {
   uint16_t msgLen;           // Length of fw message in bytes
   uint8_t msg[MAX_MSG_LEN];  // fw release message
 } fw_meta_st;
-
-long program_flash(void* page_addr, unsigned char* data, unsigned int data_len);
 
 #endif
