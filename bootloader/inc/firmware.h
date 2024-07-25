@@ -2,6 +2,7 @@
 #define FIRMWARE_H
 
 #include "stdint.h"
+#include "stdbool.h"
 
 // Function stubs
 uint32_t load_firmware(void);
@@ -11,5 +12,6 @@ void verify_firmware(uint32_t);
 void check_firmware_version(void);
 void set_firmware_metadata(uint32_t);
 void finalize_firmware(void);
+void set_firmware_debug(bool);
 
 #endif

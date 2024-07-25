@@ -93,8 +93,8 @@ def parse_args():
     args = parser.parse_args()
     if args.version < 0 or args.version > 65535:
         parser.error("Version number must be between 0 and 65535.")
-    if len(args.message) > 1021:
-        parser.error("Release message must be less than 1021 characters.")
+    if len(args.message) > 1020:
+        parser.error("Release message must be less than 1020 characters.")
     return args
 
 # parameters for compiling function in terminal

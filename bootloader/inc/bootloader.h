@@ -36,9 +36,6 @@
 // Checksum Imports
 #include "driverlib/sw_crc.h"
 
-#define IV_LEN 16
-#define MAX_MSG_LEN 256
-
 // Firmware Constants
 #define METADATA_BASE 0x3FC00  // base address of version and firmware size in Flash
 #define FW_TEMP_BASE 0x30000   // temporary firmware storage location
@@ -76,6 +73,10 @@
 
 #define FW_VERSION_ADDR 0x3FC00
 #define FW_RELEASE_MESSAGE_ADDR 0x3FC02
+#define FW_DEBUG_ADDR 0x3FFFF
+#define __FW_IS_DEBUG ((*((uint8_t *)FW_DEBUG_ADDR) & 0x01)==0x0)
+#define DEBUG_BYTE 0xFE
+#define DEFAULT_BYTE 0xFF
 
 #define VERSION_LEN 2
 #define FIRMWARE_SIZE_LEN 2

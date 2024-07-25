@@ -85,7 +85,7 @@ def send_frame(ser, frame, debug = False):
     resp = ser.read(1)  # Wait for an OK from the bootloader
 
     # Tenatively keep this line, idk why its here though
-    time.sleep(0.1)
+    # time.sleep(0.1)
 
         # Check if debugging is enabled
     if debug:
