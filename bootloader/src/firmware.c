@@ -15,7 +15,7 @@ uint8_t *fw_release_message_address;
 /*
  * Load the firmware into flash.
  */
-void load_firmware(void) {
+uint32_t load_firmware(void) {
   int frame_length = 0;
   int read = 0;
   uint32_t rcv = 0;
@@ -96,9 +96,7 @@ void load_firmware(void) {
     }
   }
 
-  // TODO : Decrypt the firmware in flash
-  decrypt_firmware(total_length);
-  verify_firmware(total_length);
+  return total_length;
 }
 
 void boot_firmware(void) {
@@ -116,8 +114,7 @@ void boot_firmware(void) {
     return;
   }
 
-  // compute the release message address, and then print it
-  uint16_t fw_size = *FW_SIZE_ADDR;
+  // Write the firmware release message
   uart_write_str(UART0, (char *)fw_release_message_address);
 
   // Boot the firmware
@@ -225,7 +222,7 @@ void verify_firmware(uint32_t encrypted_firmware_size) {
 // This should only be called after the firmware is loaded, decrypted, and verified, and the version number has been checked
 void set_firmware_metadata(void){
   uint16_t version = *(uint16_t*)(FW_BASE); 
-  uint16_t size = *(uint16_t*)(FW_BASE+2); 
+  uint16_t size = *(uint16_t*)(FW_BASE + 2); 
   fw_release_message_address = (uint8_t*)(FW_BASE + 2 + size); 
   
   // Write the version to permanent location in flash

@@ -10,8 +10,6 @@
 #include "driverlib/eeprom.h"
 
 // Forward Declarations
-void load_firmware(void);
-void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
 
 extern uint8_t *fw_release_message_address;
@@ -67,7 +65,11 @@ int main(void) {
 
     if (instruction == UPDATE) {
       uart_write_str(UART0, "U");
-      load_firmware();
+      uint32_t encrypted_fw_size = load_firmware();
+      decrypt_firmware(encrypted_fw_size);
+      verify_firmware(encrypted_fw_size); 
+      check_firmware_version();
+      set_firmware_metadata();
       uart_write_str(UART0, "Loaded new firmware.\n");
       nl(UART0);
     } else if (instruction == BOOT) {
