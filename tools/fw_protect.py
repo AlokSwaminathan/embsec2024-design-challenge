@@ -74,8 +74,8 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
     with open(outfile, mode = "wb+") as protected_binary:
         protected_binary.write(protected_firmware)
 
-# parameters for compiling function in terminal
-if __name__ == "__main__":
+
+def parse_args():
     parser = argparse.ArgumentParser(description = "Firmware Protection Tool")
     parser.add_argument(
         "--infile", help = "Path to the firmware image to protect.", required = True)
@@ -91,7 +91,15 @@ if __name__ == "__main__":
         "--debug", help = "Enable debugging messages.", action = "store_true"
     )
     args = parser.parse_args()
+    if args.version < 0 or args.version > 65535:
+        parser.error("Version number must be between 0 and 65535.")
+    if len(args.message) > 1021:
+        parser.error("Release message must be less than 1021 characters.")
+    return args
 
+# parameters for compiling function in terminal
+if __name__ == "__main__": 
+    args = parse_args()
     protect_firmware(infile = args.infile, 
                      outfile = args.outfile, 
                      version = args.version, 
