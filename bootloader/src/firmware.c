@@ -152,7 +152,7 @@ void decrypt_firmware(uint32_t encrypted_firmware_size) {
   Aes aes_cbc;
 
   // Read the AES key from EEPROM
-  EEPROMRead((uint32_t *)aes_key, 0x00, AES_KEY_SIZE);
+  EEPROMRead((uint32_t *)aes_key, 64, AES_KEY_SIZE);
 
   // Initalize the AES module
   wc_AesInit(&aes_cbc, NULL, INVALID_DEVID);
@@ -215,7 +215,7 @@ void verify_firmware(uint32_t encrypted_firmware_size) {
   signature -= ED25519_SIG_SIZE;
 
   // Read the ED25519 public key from EEPROM
-  EEPROMRead((uint32_t *)ed25519_public_key, AES_KEY_SIZE, ED25519_PUBLIC_KEY_SIZE);
+  EEPROMRead((uint32_t *)ed25519_public_key,128, AES_KEY_SIZE, ED25519_PUBLIC_KEY_SIZE);
 
   // Initialize ED25519 public key
   if (wc_ed25519_init(&ed25519_key) != 0) {
