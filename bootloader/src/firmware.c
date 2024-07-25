@@ -224,22 +224,24 @@ void verify_firmware(uint32_t encrypted_firmware_size) {
 // Sets the firmware metadata to the appropriate addresses and variables
 // This should only be called after the firmware is loaded, decrypted, and verified, and the version number has been checked
 void set_firmware_metadata(void){
-  uint16_t version_address = (uint16_t*)(FW_BASE); 
-  uint16_t size_address = (uint16_t*)(FW_BASE+2); 
-  fw_release_message_address = (uint8_t*)(FW_BASE + *size_address); 
+  uint16_t version = *(uint16_t*)(FW_BASE); 
+  uint16_t size = *(uint16_t*)(FW_BASE+2); 
+  fw_release_message_address = (uint8_t*)(FW_BASE + 2 + size); 
+  
+  // Write the version to permanent location in flash
+  program_flash((void*)FW_VERSION_ADDR, (uint8_t*)&version, 2);
 }
 
 // Check the firmware version to see if it is >= the last version
 // If it is 0 just let it go through
 void check_firmware_version(void){
   uint16_t ver = *(uint16_t*)FW_BASE;
-  uint16_t lasver =  *(uint16_t*)FW_VERSION_ADDR;
+  uint16_t last_ver =  *(uint16_t*)FW_VERSION_ADDR;
   
-  if(ver == 0 || ver >= lasver){
+  if(ver == 0 || ver >= last_ver){
     return;
   }
-  else if(ver < lasver){
-    ver = lasver;
+  else if(ver < last_ver){
+    SysCtlReset();
   }
-
 }
