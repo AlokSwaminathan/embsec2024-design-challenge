@@ -52,6 +52,12 @@ long program_flash(void *page_addr, unsigned char *data, unsigned int data_len) 
  * Write an unsigned short to the UART.
  */
 void uart_write_unsigned_short(uint8_t uart, uint16_t num){
+  // 0 is the execption since it is all 0s
+  if (num == 0){
+    uart_write_str(uart, "0");
+    return;
+  }
+
   // Longest unsigned short is 5 characters 
   char str[6] = "00000";
 
