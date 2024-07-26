@@ -2,23 +2,94 @@
 
 Installation and development guide for the most secure (TM) automotive bootloader on the planet! We guarentee that cars running our software will be unhackable (provided hacking is not attempted). Of all the automotive bootloaders, this is certainly one of them. Read on and tremble at our embedded security skillz.
 
-### Overview
+## Overview
 
-Our group hashed our data with SHA512, used ED25519 to sign the data, then encrypted it with AES CBC.
+### Tools (Python scripts)
 
-We sent our data in the format:
+#### Build Process(bl_build.py):
 
- [ 0x02 ] [ 0x02 ]   [Variable]   [Variable]  [0x01]    [0x40]
------------------------------------------------------------------
+1. Generates random AES 256 key and a random ed25519 key pair
+2. Writes the ed25519 public key and AES key to `bootloader/inc/secret_keys.h`
+3. Makes the bootloader
+4. Deletes the secrets from `bootloader/inc/secret_keys.h`
+5. Pads the bootloader with `0xFF` until it is 256kb in size, then set version metadata to 0 so any version can be loaded to start
+6. Writes the ed25519 private key and the AES key in JSON format to `secret_build_output.txt`
+
+#### Encryption process(fw_protect.py):
+
+1. Creates a firmware blob that is version + firmware size + firmware + release message
+2. Uses ed25519 to sign the SHA512 hash of the firmware blob, then append that signature
+3. Encrypts the blob with AES CBC (randomly generated IV)
+4. Prepends IV to ciphertext to generate protected_firmware
+
+Plaintext format:
+
+| 0x02 | 0x02 | ... | ... | 0x01 | 0x40|
+| --- | --- | --- | --- | --- | -- |
 | Version | Size  | Firmware... | Message... | \x00 | Signature |
------------------------------------------------------------------
+
+#### Updating Process (Sender) (fw_update.py)
 
 We sent our data in frames of the format:
 
-[ 0x02 ] [ variable ] [0x04]
---------------------------------
+| 0x02 | ... | 0x04|
+| --- | --- | --- |
 | Length | Data...  | Checksum |
---------------------------------
+
+A 0 length frame is sent to indicate completion.
+
+After each frame, wait for a response. If `OK` then continue, if `ERROR`, read and print out the error message, then quit.
+
+After the 0 length frame, the program expects a `DONE` and responds the same to `ERROR`.
+
+### Bootloader
+
+#### Flash Layout:
+
+1. 0x00000-0x20000 is for the bootloader
+2. 0x20000-0x30000 is where the firmware is booted from (`FW_BASE`)
+3. 0x30000-0x3FC00 is where newly sent firmware is stored while it is decrypted and verified (`FW_TEMP_BASE`)
+4. 0x3FC00-0x3FFFF is the last page of flash where metadata is permanently stored (`FW_METADATA_BASE`)
+
+#### Permanent Metadata
+
+1. 0x3FC00 - Version Number (uint16_t) (`FW_VERSION_ADDR`)
+2. 0x3FC02 - Firmware Size (uint16_t) (`FW_SIZE_ADDR`)
+3. 0x3FC04 - Release Message (null terminated) (`FW_RELEASE_MSG_ADDR`)
+4. 0x3FF00 - Signature (0x40 bytes) (`FW_SIG_ADDR`)
+5. 0x3FFFF (bit 8) - Debug bit (1 for no, 0 for yes) 
+
+#### Secret handling:
+
+1. Checks if secrets in flash have already been deleted or not
+    - If they have been then return
+2. Initialize EEPROM and write secrets to EEPROM
+3. Iterate through flash to find the secrets then erase them
+4. Erase the secrets from RAM
+5. Reset
+
+
+#### Firmware reception process
+
+1. Stores the protected firmware sent by `fw_update` at `FW_TEMP_BASE` (Won't recieve more than 32kb)
+   - Writes to flash every time 1kb is read and fills the data buffer
+2. Decrypts the firmware in place, shifts everything left by 16 bytes (removes IV)
+3. Verifies the firmware with the signature
+4. Checks the firmware version with the version at `FW_VERSION_ADDR`
+5. Writes the metadata to `FW_METADATA_BASE`
+6. Moves the firmware binary to `FW_BASE`
+   - If there is an error at this stage, it erases `FW_BASE` to ensure the data at `FW_BASE` isn't corrupted
+
+If an error is encountered, the `ERROR` byte and an error message are sent over `UART0` so `fw_update` can recieve it, then the bootloader resets
+
+#### Firmware booting process
+
+1. Checks the memory at `FW_BASE` to see if there is loaded firmware
+2. Dynamically computes a SHA512 hash of the firmware blob in the format from `fw_protect`, then verifies its with the signature at `FW_SIG_ADDR`
+3. Writes the firmware version and release message over `UART0`
+4. Runs ASM that branches to `FW_BASE` and starts executing the firmware
+
+If an error is encountered, the error message is sent over `UART0` so `picocom` can recieve it, then the bootloader resets
 
 # Project Structure
 ```
@@ -46,7 +117,6 @@ We sent our data in frames of the format:
 │   ├── bl_build.py
 │   ├── fw_protect.py
 │   ├── fw_update.py
-|   ├── fw_decrypt.py
 │   ├── util.py
 ├── README.md
 
