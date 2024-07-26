@@ -15,9 +15,7 @@ from Crypto.PublicKey import ECC
 from Crypto.Signature import eddsa
 from Crypto.Util.Padding import unpad
 import base64
-
-def print_as_hex(data: bytes):
-    print(' '.join([f'{byte:02x}' for byte in data]))
+from util import get_hex
 
 
 def decrypt_firmware(infile: str, outfile: str, secret_file: str):
@@ -28,20 +26,19 @@ def decrypt_firmware(infile: str, outfile: str, secret_file: str):
     with open(secret_file, mode = "r") as secrets_json:
         secrets = json.load(secrets_json)
 
-    #Extract AES IV, ciphertext, and tag from infile 
+    #Extract AES IV and ciphertext from infile 
     aes_iv = protected_firmware[:16]
     aes_ciphertext = protected_firmware[16:]
     aes_key = base64.b64decode(secrets["aes_key"])
     
-    print("AES IV:")
-    print_as_hex(aes_iv)
+    print(f"AES IV: {get_hex(aes_iv)}")
     
-    print("AES Key:")
-    print_as_hex(aes_key)
+    print(f"AES Key: {get_hex(aes_key)}")
 
     #Initiliaze AES key in CBC mode
     aes = AES.new(aes_key, AES.MODE_CBC, IV=aes_iv) 
 
+    # Decrypt the firmware
     try:
         signed_firmware_blob = unpad(aes.decrypt(aes_ciphertext), AES.block_size)
         print("AES decryption successful.")
