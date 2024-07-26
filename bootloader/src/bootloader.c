@@ -10,48 +10,9 @@
 
 #include "driverlib/eeprom.h"
 
-// Forward Declarations
-void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
-
-// Delay to allow time to connect GDB
-// green LED as visual indicator of when this function is running
-void debug_delay_led() {
-  // Enable the GPIO port that is used for the on-board LED.
-  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-
-  // Check if the peripheral access is enabled.
-  while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF)) {
-  }
-
-  // Enable the GPIO pin for the LED (PF3).  Set the direction as output, and
-  // enable the GPIO pin for digital function.
-  GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);
-
-  // Turn on the green LED
-  GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, GPIO_PIN_3);
-
-  // Wait
-  SysCtlDelay(SysCtlClockGet() * 2);
-
-  // Turn off the green LED
-  GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, 0x0);
-}
-
+// Stores secrets then just loops while getting input for booting or updating
 int main(void) {
   write_and_remove_secrets();
-
-  // Enable the GPIO port that is used for the on-board LED.
-  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-
-  // Check if the peripheral access is enabled.
-  while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF)) {
-  }
-
-  // Enable the GPIO pin for the LED (PF3).  Set the direction as output, and
-  // enable the GPIO pin for digital function.
-  GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);
-
-  // debug_delay_led();
 
   initialize_uarts();
 
@@ -60,7 +21,7 @@ int main(void) {
 
   int resp;
 
-  // wait until response given from user
+  // Constantly query user for response
   // if 'B', boot the existing loaded firmware
   // if 'U', cooperate with fw_update to update the current firmware
   while (1) {

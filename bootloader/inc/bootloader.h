@@ -56,13 +56,10 @@
 #define BOOT ((unsigned char)'B')
 
 // Data buffer sizes
-#define META_LEN 22  // Excludes message bytes
 #define IV_LEN 16
 #define MAX_MSG_LEN 256
-#define BLOCK_SIZE FLASH_PAGESIZE
 #define SIG_SIZE 256
-#define CHUNK_SIZE (BLOCK_SIZE + SIG_SIZE)
-
+#define BLOCK_SIZE FLASH_PAGESIZE
 #define MAX_CHUNK_NO 32  // 30KB firmware + padding
 
 #endif

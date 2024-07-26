@@ -8,16 +8,14 @@
 #include "bootloader.h"
 #include "secret_keys.h"
 
-// Variables
 // Firmware Buffer
 unsigned char data[FLASH_PAGESIZE];
 
 // Size of encrypted firmware
 uint32_t encrypted_fw_size;
 
-/*
- * Load the firmware into flash.
- */
+// Load firmware from flash
+// Recieves it in frames with size, data, checksum
 void load_firmware(void) {
   int frame_length = 0;
   int read = 0;
@@ -113,9 +111,8 @@ void load_firmware(void) {
   encrypted_fw_size = total_length;
 }
 
-/*
- * Boots the current firmware stored in flash
- */
+// Boots the firmware stored in FW_BASE
+// Verifies it against the signature at FW_SIG_ADDR
 void boot_firmware(void) {
   // Check if firmware loaded
   int fw_present = 0;
@@ -155,14 +152,13 @@ void boot_firmware(void) {
   // hides the key so it cannot be accessed until board reboot
   EEPROMBlockHide(AES_KEY_EEPROM_ADDR / EEPROM_BLOCK_SIZE);
 
-  // Boot the firmware
+  // Boot the firmware, permanently leaves bootloader execution context until reboot
   __asm(
       "LDR R0,=0x20001\n\t"
       "BX R0\n\t");
 }
-/*
- * Decrypt the firmware loaded onto the board via fw_update.py
- */
+
+// Decrypt the firmware in place using the AES key
 void decrypt_firmware() {
   uint8_t aes_key[AES_KEY_SIZE];
   uint32_t firmware_size = encrypted_fw_size - AES_IV_SIZE;
@@ -217,6 +213,8 @@ void decrypt_firmware() {
   memset(aes_key, 0xFF, AES_KEY_SIZE);
 }
 
+// Verify the firmware using the ed25519 public key
+// This ensures integrity and authenticity
 void verify_firmware() {
   // Remove IV size
   encrypted_fw_size -= AES_IV_SIZE;
@@ -293,7 +291,7 @@ void set_firmware_metadata() {
   memcpy(data + (FW_SIG_ADDR - FW_VERSION_ADDR), sig, FW_SIG_LEN);
 
   // Write the metadata to permanent location in flash
-  if (program_flash((void *)FW_VERSION_ADDR, data, FLASH_PAGESIZE) != 0) {
+  if (program_flash((void *)FW_METADATA_BASE, data, FLASH_PAGESIZE) != 0) {
     error(UART0, "Failed to write firmware metadata to permanent location in flash\n");
   }
 }

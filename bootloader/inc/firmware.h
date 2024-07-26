@@ -17,17 +17,21 @@ bool pre_boot_verify_firmware(void);
 #define METADATA_BASE 0x3FC00  // base address of version and firmware size in Flash
 #define FW_TEMP_BASE 0x30000   // temporary firmware storage location
 #define FW_BASE 0x20000        // final firmware storage location
+#define FW_METADATA_BASE 0x3FC00 // start of verified firmware metadata
 
+// Firmware data lengths
 #define FW_VERSION_LEN 2
 #define FW_SIZE_LEN 2
 #define INITIAL_METADATA_LEN 4
 #define FW_SIG_LEN 64
 
+// Temporary firmware metadata
 #define FW_TEMP_VERSION_ADDR 0x30000
 #define FW_TEMP_SIZE_ADDR 0x30002
 #define FW_TEMP_RELEASE_MSG_ADDR (FW_TEMP_SIZE_ADDR + FW_SIZE_LEN + *((uint16_t *)(FW_TEMP_SIZE_ADDR)))
 
-#define FW_VERSION_ADDR 0x3FC00
+// Addresses to verified firmware metadata
+#define FW_VERSION_ADDR FW_METADATA_BASE
 #define FW_SIZE_ADDR (FW_VERSION_ADDR + FW_VERSION_LEN)
 #define FW_RELEASE_MSG_ADDR (FW_SIZE_ADDR + FW_SIZE_LEN)
 #define FW_SIG_ADDR 0x3FF00

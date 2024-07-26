@@ -9,10 +9,8 @@ void remove_secret(volatile uint8_t*, uint32_t);
 // Global Variables
 extern uint8_t data[FLASH_PAGESIZE];
 
-/*
- * Write secrets to EEPROM and delete them from flash
- * No optimization because it fixed some issues
- */
+// Write secrets to EEPROM and delete them from flash
+// No optimization because it fixed some issues
 #pragma GCC push_options
 #pragma GCC optimize("O0")
 void write_and_remove_secrets(void) {

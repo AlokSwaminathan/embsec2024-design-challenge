@@ -81,7 +81,6 @@ def save_to_secrets(ed25519_private_key: bytes,ed25519_public_key: bytes, aes_ke
     # Build bootloader and add Ed25519 private/public key and AES key to JSON file
     json_data = {
         "ed25519_private_key": ed25519_private_key,
-        "ed25519_public_key": ed25519_public_key,
         "aes_key": aes_key
     }
     os.chdir(REPO_ROOT)
