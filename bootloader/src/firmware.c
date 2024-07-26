@@ -46,6 +46,13 @@ void load_firmware(void) {
       break;
     }
 
+    if (frame_length > 1024) {
+      uart_write(UART0, ERROR);
+      while (UARTBusy(UART0_BASE)) {
+      };
+      SysCtlReset();
+    }
+
     calc_crc = 0xFFFFFFFF;
 
     // Get the number of bytes specified

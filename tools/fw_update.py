@@ -157,6 +157,11 @@ if __name__ == "__main__":
     
     # Parse the command line arguments
     args = parser.parse_args()
+    
+    if args.frame_size > 1024:
+      print("Frame size must be less than 1024")
+      ser.close()
+      exit(1)
 
     # Call the update function with the parsed arguments
     update(ser = ser, infile = args.firmware, debug = args.debug, frame_size= args.frame_size)
