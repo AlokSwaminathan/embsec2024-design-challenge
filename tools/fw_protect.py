@@ -16,6 +16,7 @@ from Crypto.Cipher import AES
 from Crypto.PublicKey import ECC
 from Crypto.Signature import eddsa
 from Crypto.Util.Padding import pad
+from Crypto.Hash import SHA512
 import base64
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent.absolute()
@@ -47,8 +48,11 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
     ed25519_private_key = base64.b64decode(secrets["ed25519_private_key"])
     ed25519_private_key = ECC.import_key(ed25519_private_key, curve_name='ed25519')
     signer = eddsa.new(ed25519_private_key, mode = 'rfc8032')
-    signature = signer.sign(firmware_blob)
+    firmware_blob_hash = SHA512.new(firmware_blob)
+    signature = signer.sign(firmware_blob_hash)
     if debug:
+      firmware_hash_hex_string = ' '.join([f'{byte:02x}' for byte in firmware_blob_hash.digest()])
+      print(f"Firmware blob hash: {firmware_hash_hex_string}")
       signature_hex_string = ' '.join([f'{byte:02x}' for byte in signature])
       print(f"Signature: {signature_hex_string}")
     signed_firmware_blob = firmware_blob + signature

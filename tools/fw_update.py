@@ -63,6 +63,8 @@ running_total = 0
 FLASH_PAGESIZE = 1024
 
 def send_frame(ser, frame, debug = False):
+    global running_total
+  
     ser.write(p16(len(frame), endian = 'little'))  # Write the frame length
     
     if (running_total % FLASH_PAGESIZE == 0 or running_total//FLASH_PAGESIZE != (running_total + len(frame))//FLASH_PAGESIZE):
@@ -99,6 +101,8 @@ def send_frame(ser, frame, debug = False):
         if debug:
             print("Resending frame")
         send_frame(ser, frame, debug=debug)
+        return
+    running_total += len(frame)
 
 def ready_bootloader():
     ser.write(b'U')
@@ -108,6 +112,8 @@ def ready_bootloader():
     print("Bootloader is ready to recieve firmware.")
 
 def update(ser, infile, debug, frame_size):
+    running_total = 0
+    
     # Open serial port. Set baudrate to 115200. Set timeout to 2 seconds.
     with open(infile, "rb") as fp:
         firmware = fp.read()
