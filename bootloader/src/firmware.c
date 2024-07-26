@@ -39,6 +39,7 @@ void load_firmware(void) {
     rcv = uart_read(UART0, BLOCKING, &read);
     frame_length += ((int)rcv << 8);
 
+    // finish if the there is nothing left to load in
     if (frame_length == 0) {
       uart_write(UART0, DONE);
       while (UARTBusy(UART0_BASE)) {
@@ -46,13 +47,15 @@ void load_firmware(void) {
       break;
     }
 
-    if (frame_length > 1024) {
+    // quit if frame length is more than the page size because that would cause issues
+    if (frame_length > FLASH_PAGESIZE) {
       uart_write(UART0, ERROR);
       while (UARTBusy(UART0_BASE)) {
       };
       SysCtlReset();
     }
 
+    //initialization for checksum
     calc_crc = 0xFFFFFFFF;
 
     // Get the number of bytes specified
@@ -69,9 +72,13 @@ void load_firmware(void) {
           uart_write(UART0, ERROR);
           SysCtlReset();
         }
+        
+        // go to next page of flash memory
         page_addr += FLASH_PAGESIZE;
         data_index = 0;
       }
+
+      // calculating checksum
       data[data_index] = uart_read(UART0, BLOCKING, &read);
       calc_crc = Crc32(calc_crc, (uint8_t *)(data + data_index), 1);
       data_index++;
@@ -116,6 +123,9 @@ void load_firmware(void) {
   encrypted_fw_size = total_length;
 }
 
+/*
+* Boots the current firmware stored in flash
+*/
 void boot_firmware(void) {
   // Check if firmware loaded
   int fw_present = 0;
@@ -125,6 +135,7 @@ void boot_firmware(void) {
     }
   }
 
+  // if no firmware, quit
   if (!fw_present) {
     uart_write_str(UART0, "No firmware loaded.\n");
     while (UARTBusy(UART0_BASE)) {
@@ -158,6 +169,7 @@ void boot_firmware(void) {
   while (UARTBusy(UART0_BASE)) {
   };
 
+  // hides the key so it cannot be accessed until board reboot
   EEPROMBlockHide(AES_KEY_EEPROM_ADDR / EEPROM_BLOCK_SIZE);
 
   // Boot the firmware
@@ -165,7 +177,9 @@ void boot_firmware(void) {
       "LDR R0,=0x20001\n\t"
       "BX R0\n\t");
 }
-
+/*
+* Decrypt the firmware loaded onto the board via fw_update.py
+*/
 void decrypt_firmware() {
   uint8_t aes_key[AES_KEY_SIZE];
   uint32_t firmware_size = encrypted_fw_size - AES_IV_SIZE;
