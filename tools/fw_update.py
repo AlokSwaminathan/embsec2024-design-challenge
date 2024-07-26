@@ -126,7 +126,7 @@ def update(ser, infile, debug, frame_size):
     for i in range(0, len(firmware), frame_size):
         frame = firmware[i:i+frame_size]
         send_frame(ser, frame, debug = debug)
-        print(f"Sent frame {i // frame_size} of {len(firmware) // frame_size}")
+        print(f"Sent frame {i // frame_size} of {num_frames}")
     
 
     print("Done writing firmware.")

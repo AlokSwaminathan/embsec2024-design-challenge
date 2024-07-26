@@ -265,11 +265,13 @@ void verify_firmware() {
 void set_firmware_metadata() {
   uint16_t version = *(uint16_t *)(FW_TEMP_VERSION_ADDR);
   uint16_t size = *(uint16_t *)(FW_TEMP_SIZE_ADDR);
-  uint32_t fw_release_message_size = strlen((char *)FW_TEMP_RELEASE_MSG_ADDR) + 1;
-  uint8_t *sig = (uint8_t *)(FW_TEMP_BASE + INITIAL_METADATA_LEN + fw_release_message_size + size);
-  if (fw_release_message_size > MAX_MSG_LEN) {
-    fw_release_message_size = MAX_MSG_LEN;
+  uint32_t fw_release_message_size = 1;
+  for (uint8_t *addr = (uint8_t*)FW_RELEASE_MSG_ADDR; *addr != '\0'; addr++,fw_release_message_size++){
+    if (fw_release_message_size >= MAX_MSG_LEN){
+      SysCtlReset();
+    }
   }
+  uint8_t *sig = (uint8_t *)(FW_TEMP_BASE + INITIAL_METADATA_LEN + fw_release_message_size + size);
 
   bool is_debug = (version == 0);
 
