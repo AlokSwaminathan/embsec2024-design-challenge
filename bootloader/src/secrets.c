@@ -27,7 +27,7 @@ void write_and_remove_secrets(void) {
     SysCtlReset();
   }
 
-  // Get keys from secrets.h
+  // Get keys from secret_keys.h
   volatile uint8_t AES_SECRET[] = AES_KEY;
   volatile uint8_t ED25519_SECRET[] = ED25519_PUBLIC_KEY;
 
@@ -60,7 +60,7 @@ void write_and_remove_secrets(void) {
 }
 #pragma GCC pop_options
 
-// Remove individual secrets from flash
+// Remove individual secrets from flash and stack
 #pragma GCC push_options
 #pragma GCC optimize("O0")
 void remove_secret(volatile uint8_t* secret, uint32_t size) {
@@ -88,7 +88,7 @@ void remove_secret(volatile uint8_t* secret, uint32_t size) {
     secret[i] = 0xFF;
   }
 
-  // Clear the secret from flash
+  // Clear the secret from flash 
   int32_t res;
   uint32_t block_addr = (uint32_t)flash_addr - ((uint32_t)flash_addr % FLASH_PAGESIZE);
   for (uint32_t i = 0; i < FLASH_PAGESIZE; i++) {
