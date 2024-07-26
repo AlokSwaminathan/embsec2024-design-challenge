@@ -66,12 +66,12 @@ int main(void) {
       uart_write_str(UART0, "U");
       while (UARTBusy(UART0_BASE)) {
       };
-      uint32_t encrypted_fw_size = load_firmware();
-      decrypt_firmware(encrypted_fw_size);
-      verify_firmware(encrypted_fw_size); 
+      load_firmware();
+      decrypt_firmware();
+      verify_firmware(); 
       check_firmware_version();
       finalize_firmware();
-      set_firmware_metadata(encrypted_fw_size);
+      set_firmware_metadata();
       uart_write_str(UART0, "Loaded new firmware.\n");
       nl(UART0);
       while (UARTBusy(UART0_BASE)) {

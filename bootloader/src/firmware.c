@@ -12,12 +12,14 @@
 // Firmware Buffer
 unsigned char data[FLASH_PAGESIZE];
 // Padding amount for firmware
-uint8_t firmware_padding_size;
+uint8_t fw_padding_size;
+// Size of encrypted firmware
+uint32_t encrypted_fw_size;
 
 /*
  * Load the firmware into flash.
  */
-uint32_t load_firmware(void) {
+void load_firmware(void) {
   int frame_length = 0;
   int read = 0;
   uint32_t rcv = 0;
@@ -104,7 +106,7 @@ uint32_t load_firmware(void) {
     }
   }
 
-  return total_length;
+  encrypted_fw_size = total_length;
 }
 
 void boot_firmware(void) {
@@ -124,6 +126,15 @@ void boot_firmware(void) {
     return;
   }
 
+  // Verify the firmware before booting
+  bool verified = pre_boot_verify_firmware();
+  if (!verified) {
+    uart_write_str(UART0, "Firmware verification failed.\n");
+    while (UARTBusy(UART0_BASE)) {
+    };
+    SysCtlReset();
+  }
+
   // Write the firmware version
   uart_write_str(UART0, "Firmware version: ");
   if (!__FW_IS_DEBUG) {
@@ -134,11 +145,13 @@ void boot_firmware(void) {
   nl(UART0);
 
   // Write the firmware release message
-  uart_write_str(UART0, (char *)FW_RELEASE_MESSAGE_ADDR);
+  uart_write_str(UART0, (char *)FW_RELEASE_MSG_ADDR);
   nl(UART0);
 
   while (UARTBusy(UART0_BASE)) {
   };
+
+  EEPROMBlockHide(AES_KEY_EEPROM_ADDR / EEPROM_BLOCK_SIZE);
 
   // Boot the firmware
   __asm(
@@ -146,13 +159,14 @@ void boot_firmware(void) {
       "BX R0\n\t");
 }
 
-void decrypt_firmware(uint32_t encrypted_firmware_size) {
+void decrypt_firmware() {
   uint8_t aes_key[AES_KEY_SIZE];
-  uint32_t firmware_size = encrypted_firmware_size - AES_IV_SIZE;
+  uint32_t firmware_size = encrypted_fw_size - AES_IV_SIZE;
   Aes aes_cbc;
 
   // Read the AES key from EEPROM
   EEPROMRead((uint32_t *)aes_key, AES_KEY_EEPROM_ADDR, AES_KEY_SIZE);
+  EEPROMBlockHide(AES_KEY_EEPROM_ADDR / EEPROM_BLOCK_SIZE);
 
   // Initalize the AES module
   wc_AesInit(&aes_cbc, NULL, INVALID_DEVID);
@@ -199,23 +213,23 @@ void decrypt_firmware(uint32_t encrypted_firmware_size) {
   memset(aes_key, 0xFF, AES_KEY_SIZE);
 }
 
-void verify_firmware(uint32_t encrypted_firmware_size) {
+void verify_firmware() {
   // Remove IV size
-  encrypted_firmware_size -= AES_IV_SIZE;
+  encrypted_fw_size -= AES_IV_SIZE;
 
   // Initialize ed25519 key and public key
   ed25519_key ed25519_key;
   uint8_t ed25519_public_key[ED25519_PUBLIC_KEY_SIZE];
 
   // Find true signature behind padding
-  uint8_t *signature = (uint8_t *)(FW_TEMP_BASE + encrypted_firmware_size);
-  firmware_padding_size = *(signature - 1);
-  encrypted_firmware_size -= firmware_padding_size;
-  signature -= firmware_padding_size;
+  uint8_t *signature = (uint8_t *)(FW_TEMP_BASE + encrypted_fw_size);
+  fw_padding_size = *(signature - 1);
+  encrypted_fw_size -= fw_padding_size;
+  signature -= fw_padding_size;
   signature -= ED25519_SIG_SIZE;
 
   // Read the ED25519 public key from EEPROM
-  EEPROMRead((uint32_t *)ed25519_public_key,ED25519_PUBLIC_KEY_EEPROM_ADDR, ED25519_PUBLIC_KEY_SIZE);
+  EEPROMRead((uint32_t *)ed25519_public_key, ED25519_PUBLIC_KEY_EEPROM_ADDR, ED25519_PUBLIC_KEY_SIZE);
 
   // Initialize ED25519 public key
   if (wc_ed25519_init(&ed25519_key) != 0) {
@@ -227,8 +241,7 @@ void verify_firmware(uint32_t encrypted_firmware_size) {
 
   // Verify signature
   int verified;
-  int ret = wc_ed25519_verify_msg(signature, ED25519_SIG_SIZE, (byte *)FW_TEMP_BASE, encrypted_firmware_size - ED25519_SIG_SIZE,
-                                  &verified, &ed25519_key);
+  int ret = wc_ed25519ph_verify_msg(signature, ED25519_SIG_SIZE, (byte *)FW_TEMP_BASE, encrypted_fw_size - ED25519_SIG_SIZE, &verified, &ed25519_key, NULL, 0);
   if (ret != 0 || verified != 1) {
     SysCtlReset();
   }
@@ -242,35 +255,41 @@ void verify_firmware(uint32_t encrypted_firmware_size) {
 
 // Sets the firmware metadata to the appropriate addresses and variables
 // This should only be called after the firmware is loaded, decrypted, and verified, the version number has been checked, and the firmware has been finalized
-void set_firmware_metadata(uint32_t encrypted_firmware_size) {
-  uint16_t version = *(uint16_t *)(FW_TEMP_BASE);
-  uint16_t size = *(uint16_t *)(FW_TEMP_BASE + VERSION_LEN);
-  uint8_t *fw_release_message_address = (uint8_t *)(FW_TEMP_BASE + INITIAL_METADATA_LEN + size);
-  uint32_t fw_release_message_size = encrypted_firmware_size - firmware_padding_size - size - 4;
+void set_firmware_metadata() {
+  uint16_t version = *(uint16_t *)(FW_TEMP_VERSION_ADDR);
+  uint16_t size = *(uint16_t *)(FW_TEMP_SIZE_ADDR);
+  uint32_t fw_release_message_size = strlen((char *)FW_TEMP_RELEASE_MSG_ADDR) + 1;
+  uint8_t *sig = (uint8_t *)(FW_TEMP_BASE + INITIAL_METADATA_LEN + fw_release_message_size + size);
   if (fw_release_message_size > MAX_MSG_LEN) {
     fw_release_message_size = MAX_MSG_LEN;
   }
 
   bool is_debug = (version == 0);
 
+  memset(data, 0xFF, sizeof(data));
+
   if (is_debug) {
-    memcpy(data, (uint8_t *)FW_VERSION_ADDR, VERSION_LEN);
+    memcpy(data, (uint8_t *)FW_VERSION_ADDR, FW_VERSION_LEN);
     data[1023] = DEBUG_BYTE;
   } else {
-    memcpy(data, (uint8_t *)FW_TEMP_BASE, VERSION_LEN);
+    memcpy(data, (uint8_t *)FW_TEMP_BASE, FW_VERSION_LEN);
     data[1023] = DEFAULT_BYTE;
   }
-  memcpy(data + VERSION_LEN, fw_release_message_address, fw_release_message_size);
+  memcpy(data + FW_VERSION_LEN, (uint8_t *)FW_TEMP_SIZE_ADDR, FW_SIZE_LEN);
+  memcpy(data + INITIAL_METADATA_LEN, (uint8_t *)FW_TEMP_RELEASE_MSG_ADDR, fw_release_message_size);
+  memcpy(data + (FW_SIG_ADDR - FW_VERSION_ADDR), sig, FW_SIG_LEN);
 
   // Write the metadata to permanent location in flash
-  program_flash((void *)FW_VERSION_ADDR, data, FLASH_PAGESIZE);
+  if (program_flash((void *)FW_VERSION_ADDR, data, FLASH_PAGESIZE) != 0) {
+    SysCtlReset();
+  }
 }
 
 // Check the firmware version to see if it is >= the last version
 // If it is 0 just let it go through
 // If it is less than the last version, reset the device
 void check_firmware_version(void) {
-  uint16_t ver = *(uint16_t *)FW_TEMP_BASE;
+  uint16_t ver = *(uint16_t *)FW_TEMP_VERSION_ADDR;
   uint16_t last_ver = *(uint16_t *)FW_VERSION_ADDR;
 
   if (ver == 0 || ver >= last_ver) {
@@ -283,13 +302,77 @@ void check_firmware_version(void) {
 // Take the firmware and write it to the final firmware location in flash where it will be booted from
 // This should only be called after the firmware is loaded, decrypted, and verified, and the version number has been checked
 void finalize_firmware(void) {
-  uint32_t firmware_size = (uint32_t)(*(uint16_t *)(FW_TEMP_BASE + 2));
+  uint32_t firmware_size = (uint32_t)(*(uint16_t *)FW_TEMP_SIZE_ADDR);
 
   uint32_t blocks = firmware_size / FLASH_PAGESIZE;
   if (firmware_size % FLASH_PAGESIZE != 0) {
     blocks++;
   }
+  int ret = 0;
   for (uint32_t i = 0; i < blocks; i++) {
-    program_flash((void *)(FW_BASE + i * FLASH_PAGESIZE), (uint8_t *)(FW_TEMP_BASE + 4 + i * FLASH_PAGESIZE), FLASH_PAGESIZE);
+    ret += program_flash((void *)(FW_BASE + i * FLASH_PAGESIZE), (uint8_t *)(FW_TEMP_BASE + 4 + i * FLASH_PAGESIZE), FLASH_PAGESIZE);
+  }
+  if (ret != 0) {
+    for (uint32_t i = 0; i < blocks; i++) {
+      FlashErase(FW_BASE + i * FLASH_PAGESIZE);
+    }
+    SysCtlReset();
+  }
+}
+
+// Verify the firmware before booting
+bool pre_boot_verify_firmware(void) {
+  wc_Sha512 sha512;
+  uint8_t hash[SHA512_DIGEST_SIZE];
+
+  // Initialize SHA512
+  if (wc_InitSha512(&sha512) != 0) {
+    SysCtlReset();
+  }
+
+  int ret = 0;
+
+  // Start hash with metadata
+  uint16_t ver = __FW_IS_DEBUG ? 0 : *(uint16_t *)FW_VERSION_ADDR;
+  uint16_t size = *(uint16_t *)FW_SIZE_ADDR;
+  ret |= wc_Sha512Update(&sha512, (uint8_t *)&ver, FW_VERSION_LEN);
+  ret |= wc_Sha512Update(&sha512, (uint8_t *)&size, FW_SIZE_LEN);
+
+  // Add firmware to hash
+  ret |= wc_Sha512Update(&sha512, (byte *)FW_BASE, size);
+
+  // Add release message to hash
+  uint16_t msg_size = 1;
+  for (uint8_t *c = (uint8_t *)FW_RELEASE_MSG_ADDR; *c != '\0'; c++) {
+    msg_size++;
+  }
+  ret |= wc_Sha512Update(&sha512, (byte *)FW_RELEASE_MSG_ADDR, msg_size);
+
+  ret |= wc_Sha512Final(&sha512, hash);
+
+  if (ret != 0) {
+    SysCtlReset();
+  }
+
+  // Verify signature
+  ed25519_key ed25519_key;
+  uint8_t ed25519_public_key[ED25519_PUBLIC_KEY_SIZE];
+
+  EEPROMRead((uint32_t *)ed25519_public_key, ED25519_PUBLIC_KEY_EEPROM_ADDR, ED25519_PUBLIC_KEY_SIZE);
+
+  if (wc_ed25519_init(&ed25519_key) != 0) {
+    SysCtlReset();
+  }
+  if (wc_ed25519_import_public((byte *)ed25519_public_key, ED25519_PUBLIC_KEY_SIZE, &ed25519_key) != 0) {
+    SysCtlReset();
+  }
+
+  int verified;
+  ret = wc_ed25519ph_verify_hash((uint8_t *)FW_SIG_ADDR, ED25519_SIG_SIZE, hash, sizeof(hash), &verified, &ed25519_key, NULL, 0);
+  wc_ed25519_free(&ed25519_key);
+  if (ret != 0 || verified != 1) {
+    return false;
+  } else {
+    return true;
   }
 }
