@@ -65,21 +65,4 @@
 
 #define MAX_CHUNK_NO 32  // 30KB firmware + padding
 
-// Return messages
-#define VERIFY_SUCCESS 0
-#define VERIFY_ERR 1
-
-#define FW_LOADED 0
-#define FW_ERROR 1
-
-
-
-typedef struct fw_meta_s {
-  uint16_t ver;              // Version of current fw being loaded
-  uint16_t min_ver;          // Miniumum fw version (not updated when debug fw loaded)
-  uint16_t chunks;           // Length of fw in 1kb chunks
-  uint16_t msgLen;           // Length of fw message in bytes
-  uint8_t msg[MAX_MSG_LEN];  // fw release message
-} fw_meta_st;
-
 #endif
