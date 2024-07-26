@@ -4,7 +4,21 @@ Installation and development guide for the most secure (TM) automotive bootloade
 
 ### Overview
 
+Our group hashed our data with SHA512, used ED25519 to sign the data, then encrypted it with AES CBC.
 
+We sent our data in the format:
+
+ [ 0x02 ] [ 0x02 ]   [Variable]   [Variable]  [0x01]    [0x40]
+-----------------------------------------------------------------
+| Version | Size  | Firmware... | Message... | \x00 | Signature |
+-----------------------------------------------------------------
+
+We sent our data in frames of the format:
+
+[ 0x02 ] [ variable ] [0x04]
+--------------------------------
+| Length | Data...  | Checksum |
+--------------------------------
 
 # Project Structure
 ```
