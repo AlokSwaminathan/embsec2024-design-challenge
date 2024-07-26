@@ -2,21 +2,9 @@
 
 Installation and development guide for the most secure (TM) automotive bootloader on the planet! We guarentee that cars running our software will be unhackable (provided hacking is not attempted). Of all the automotive bootloaders, this is certainly one of them. Read on and tremble at our embedded security skillz.
 
-### Internal Notes
+### Overview
 
-```
-//TODO: Make the design secure
-//TODO: Hire interns
-//TODO: Delete TODOs before publishing
-```
 
-I find myself trapped in the labyrinthine depths of my company, shackled by an unending torrent of menial tasks. My desk has become my prison, my workload, my jailer. I am buried under a mountain of code, my skills squandered on trivialities while critical applications do not get the attention they deserve. In a desperate attempt to keep up with the workload, I've had to rapidly create a functional, yet insecure, product. It's a risky move, one that fills me with dread. I haven't had the time to implement the necessary security goals of confidentiality, integrity, and authentication. If you are reading this: I implore you, proceed with caution. **Do not release this software.** It is potentially riddled with vulnerabilities and exposed to the most basic types of attacks. 
-
-Please, send help. I need to escape this relentless cycle. I need a team of talented interns to tackle this challenge. Otherwise, I fear the worst.
-
-### External Notes
-
-Ship it!
 
 # Project Structure
 ```
@@ -25,6 +13,9 @@ Ship it!
 │   │   ├── bootloader.bin
 │   ├── src
 │   │   ├── bootloader.c
+|   |   ├── firmware.c
+|   |   ├── secrets.c
+|   |   ├── util.c
 │   │   ├── startup_gcc.c
 │   ├── bootloader.ld
 │   ├── Makefile
@@ -41,6 +32,7 @@ Ship it!
 │   ├── bl_build.py
 │   ├── fw_protect.py
 │   ├── fw_update.py
+|   ├── fw_decrypt.py
 │   ├── util.py
 ├── README.md
 
@@ -49,7 +41,7 @@ Directories marked with * are part of the CrASHBoot system
 
 ## Bootloader
 
-The `bootloader` directory contains source code that is compiled and loaded onto the TM4C microcontroller. The bootloader manages which firmware can be updated to the TM4C. When connected to the fw_update tool, the bootloader checks the version of the new firmware against the internal firmware version before accepting the new firmware.
+The `bootloader` directory contains source code that is compiled and loaded onto the TM4C microcontroller. The bootloader manages which firmware can be updated to the TM4C. When connected to the fw_update tool, the bootloader checks the version of the new firmware against the internal firmware version before accepting the new firmware along with the integrity of the firmware.
 
 The bootloader will also start the execution of the loaded vehicle firmware.
 
@@ -116,6 +108,8 @@ python fw_update.py --firmware ./firmware_protected.bin
 
 If the firmware bundle is accepted by the bootloader, the `fw_update.py` tool will report it wrote all frames successfully.
 
+If the firmware bundle is rejected by the bootloader, the script will print out the error and quit.
+
 Additional firmwares can be updated by repeating steps 3 and 4, but only firmware versions higher than the one flashed to the board (or version 0) will be accepted.
 
 # Interacting with the Bootloader
@@ -125,34 +119,12 @@ Using the custom `car-serial` script:
 car-serial
 ```
 
-Using `pyserial` module:
-
-```
-python -m serial.tools.miniterm /dev/ttyACM0 115200
-```
+FYI: If you don't have `car-serial` it is just a wrapper for `picocom --baud 115200 /dev/tty.usbmodem0E23AD551 --imap lfcrlf`
 
 You can now interact with the bootloader and firmware! Type 'B' to boot.
 
 Exit miniterm: `Ctrl-]`
 Exit picocom: `Ctrl-A X`
-
-# Launching the Debugger
-Use OpenOCD with the configuration files for the board to get it into debug mode and open GDB server ports:
-```bash
-openocd -f /usr/share/openocd/scripts/interface/ti-icdi.cfg -f /usr/share/openocd/scripts/board/ti_ek-tm4c123gxl.cfg
-```
-
-Start GDB and connect to the main OpenOCD debug port:
-```bash
-gdb-multiarch -ex "target extended-remote localhost:3333" bootloader/bin/bootloader.axf
-```
-
-Go to `main` function and set a breakpoint
-```
-layout src
-list main
-break bootloader.c:50
-```
 
 Copyright 2024 The MITRE Corporation. ALL RIGHTS RESERVED <br>
 Approved for public release. Distribution unlimited 23-02181-25.
