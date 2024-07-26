@@ -10,7 +10,8 @@ void remove_secret(volatile uint8_t*, uint32_t);
 extern uint8_t data[FLASH_PAGESIZE];
 
 /*
- * Write secrets to EEPROM
+ * Write secrets to EEPROM and delete them from flash
+ * No optimization because it fixed some issues
  */
 #pragma GCC push_options
 #pragma GCC optimize("O0")
@@ -27,10 +28,11 @@ void write_and_remove_secrets(void) {
     SysCtlReset();
   }
 
-  // Get keys from secrets.h
+  // Get keys from secret_keys.h
   volatile uint8_t AES_SECRET[] = AES_KEY;
   volatile uint8_t ED25519_SECRET[] = ED25519_PUBLIC_KEY;
 
+  // Check if secrets have already been erased from flash and stored in EEPROM
   bool secrets_valid = false;
   for (int i = 0; i < AES_KEY_SIZE; i++) {
     if (AES_SECRET[i] != 0xFF) {
@@ -56,11 +58,14 @@ void write_and_remove_secrets(void) {
   remove_secret(AES_SECRET, AES_KEY_SIZE);
   remove_secret(ED25519_SECRET, ED25519_PUBLIC_KEY_SIZE);
 
+  // Reset the board to be safe
   SysCtlReset();
 }
 #pragma GCC pop_options
 
-// Remove individual secrets from flash
+// Remove individual secrets from flash and stack
+// Keep secret volatile so memory read writes aren't optimized out
+// No optimization because it fixed some issues
 #pragma GCC push_options
 #pragma GCC optimize("O0")
 void remove_secret(volatile uint8_t* secret, uint32_t size) {
@@ -88,8 +93,10 @@ void remove_secret(volatile uint8_t* secret, uint32_t size) {
     secret[i] = 0xFF;
   }
 
-  // Clear the secret from flash
+  // Clear the secret from flash 
   int32_t res;
+
+  // Fills surrounding page with existing data except for the part that contains the secret
   uint32_t block_addr = (uint32_t)flash_addr - ((uint32_t)flash_addr % FLASH_PAGESIZE);
   for (uint32_t i = 0; i < FLASH_PAGESIZE; i++) {
     if (block_addr + i >= (uint32_t)flash_addr && block_addr + i < (uint32_t)flash_addr + size) {
@@ -102,6 +109,8 @@ void remove_secret(volatile uint8_t* secret, uint32_t size) {
   if (res != 0) {
     SysCtlReset();
   }
+
+  // If the secret is on the boundary of flash pages, delete it in the second page as well
   if ((uint32_t)flash_addr + size > block_addr + FLASH_PAGESIZE) {
     block_addr += FLASH_PAGESIZE;
     for (uint32_t i = 0; i < FLASH_PAGESIZE; i++) {
