@@ -21,41 +21,49 @@ import base64
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent.absolute()
 
+#Securing firmware and avoid malicious code to be loaded into FLASH
+
 def protect_firmware(infile: str, outfile: str, version: int, message: str, secret_file: str,debug: bool):
     # Load firmware binary from infile
     with open(infile, mode = "rb") as fp:
-        firmware = fp.read()
+        firmware: bytes = fp.read()
 
     # Read secrets as a JSON file
     with open(secret_file, mode = "r") as fp:
-        secrets = json.load(fp)
+        secrets: bytes = json.load(fp)
 
     # Pack version and size into two little-endian shorts
-    metadata = p16(version, endian = 'little') + \
+    metadata: bytes = p16(version, endian = 'little') + \
         p16(len(firmware), endian = 'little')
-        
+    
+    # Print version and Firmware size info when debuging   
     if debug:
       print(f"Version: {version}\nFirmware Size: {len(firmware)}")
 
     # Combine parts into single firmware blob
-    firmware_blob = metadata + firmware + message.encode('ascii') + b"\x00"
+    firmware_blob: bytes = metadata + firmware + message.encode('ascii') + b"\x00"
+
+    # Print firmware Blob info when debuging  
     if debug:
-      firmware_hex_string = ' '.join([f'{byte:02x}' for byte in firmware_blob])
-      firmware_hex_string = firmware_hex_string[:300] + "..."
+      firmware_hex_string: str = ' '.join([f'{byte:02x}' for byte in firmware_blob])
+      firmware_hex_string: str = firmware_hex_string[:300] + "..."
       print(f"Firmware Blob: {firmware_hex_string}")
 
     # Sign firmware blob using Ed25519
-    ed25519_private_key = base64.b64decode(secrets["ed25519_private_key"])
-    ed25519_private_key = ECC.import_key(ed25519_private_key, curve_name='ed25519')
-    signer = eddsa.new(ed25519_private_key, mode = 'rfc8032')
-    firmware_blob_hash = SHA512.new(firmware_blob)
-    signature = signer.sign(firmware_blob_hash)
+    ed25519_private_key: bytes = base64.b64decode(secrets["ed25519_private_key"])
+    ed25519_private_key: bytes = ECC.import_key(ed25519_private_key, curve_name='ed25519')
+    signer: bytes = eddsa.new(ed25519_private_key, mode = 'rfc8032')
+    firmware_blob_hash: bytes = SHA512.new(firmware_blob)
+    signature: bytes = signer.sign(firmware_blob_hash)
+
+
+    # Checking the signature and hash when debugging 
     if debug:
-      firmware_hash_hex_string = ' '.join([f'{byte:02x}' for byte in firmware_blob_hash.digest()])
+      firmware_hash_hex_string: str  = ' '.join([f'{byte:02x}' for byte in firmware_blob_hash.digest()])
       print(f"Firmware blob hash: {firmware_hash_hex_string}")
-      signature_hex_string = ' '.join([f'{byte:02x}' for byte in signature])
+      signature_hex_string: str = ' '.join([f'{byte:02x}' for byte in signature])
       print(f"Signature: {signature_hex_string}")
-    signed_firmware_blob = firmware_blob + signature
+    signed_firmware_blob: bytes = firmware_blob + signature
     if debug:
       with open("signed_firmware_blob.hex", mode = "wb+") as signed_firmware:
         signed_firmware.write(signed_firmware_blob)
@@ -65,13 +73,14 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
     aes_key = base64.b64decode(secrets["aes_key"])
 
     # Encrypt the signed firmware blob using AES CBC
-    aes_iv = os.urandom(16)
-    cipher = AES.new(aes_key, AES.MODE_CBC, iv=aes_iv)
-    ct_bytes = cipher.encrypt(pad(signed_firmware_blob, AES.block_size))
+    aes_iv: bytes = os.urandom(16)
+    cipher: bytes = AES.new(aes_key, AES.MODE_CBC, iv=aes_iv)
+    ct_bytes: bytes = cipher.encrypt(pad(signed_firmware_blob, AES.block_size))
+    protected_firmware: bytes = aes_iv + ct_bytes
 
-    protected_firmware = aes_iv + ct_bytes
+     # Print AES IV and Encrypted Data when debuging  
     if debug:
-      protected_hex_string = ' '.join([f'{byte:02x}' for byte in protected_firmware])
+      protected_hex_string: str = ' '.join([f'{byte:02x}' for byte in protected_firmware])
       print(f"AES IV: {protected_hex_string[:48]}")
       print(f"Encrypted Data: {protected_hex_string[48:300]}...");
     
@@ -83,6 +92,7 @@ def protect_firmware(infile: str, outfile: str, version: int, message: str, secr
 
 
 def parse_args():
+    # Argument Parser object and tool description
     parser = argparse.ArgumentParser(description = "Firmware Protection Tool")
     parser.add_argument(
         "--infile", help = "Path to the firmware image to protect.", required = True)

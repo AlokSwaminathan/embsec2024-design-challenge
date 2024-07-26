@@ -80,27 +80,37 @@ void uart_write_unsigned_short(uint8_t uart, uint16_t num){
 
 }
 
+ /* Converts arrays bytes into hexadecimal string representation 
+ and sends it over UART */
+
 void uart_write_hex_bytes(uint8_t uart, uint8_t *start, uint32_t len) {
   for (uint8_t *cursor = start; cursor < (start + len); cursor += 1) {
     uint8_t data = *((uint8_t *)cursor);
     uint8_t right_nibble = data & 0xF;
     uint8_t left_nibble = (data >> 4) & 0xF;
-    char byte_str[3];
+
+    char byte_str[3]; // Buffer holds the hexadecimal representation 
+
+   // Convert rigth nibble into ASCII representation
     if (right_nibble > 9) {
       right_nibble += 0x37;
     } else {
       right_nibble += 0x30;
     }
-    byte_str[1] = right_nibble;
+
+    byte_str[1] = right_nibble;  // Rightmost character in the string
+
+   // Convert left nibble into ASCII representation
     if (left_nibble > 9) {
       left_nibble += 0x37;
     } else {
       left_nibble += 0x30;
     }
-    byte_str[0] = left_nibble;
-    byte_str[2] = '\0';
 
-    uart_write_str(uart, byte_str);
-    uart_write_str(uart, " ");
+    byte_str[0] = left_nibble; // Leftmost character in the string
+    byte_str[2] = '\0'; // Null terminator
+
+    uart_write_str(uart, byte_str); // Write the hexadecimal representation to the UART
+    uart_write_str(uart, " ");  // Spacing characters
   }
 }
