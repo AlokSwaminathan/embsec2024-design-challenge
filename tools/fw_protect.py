@@ -11,12 +11,15 @@ import argparse
 from pwnlib.util.packing import p16
 import json
 import os
+import pathlib
 from Crypto.Cipher import AES
 from Crypto.PublicKey import ECC
 from Crypto.Signature import eddsa
 from Crypto.Util.Padding import pad
 from Crypto.Hash import SHA512
 import base64
+
+REPO_ROOT = pathlib.Path(__file__).parent.parent.absolute()
 
 def protect_firmware(infile: str, outfile: str, version: int, message: str, secret_file: str,debug: bool):
     # Load firmware binary from infile
@@ -86,11 +89,11 @@ def parse_args():
     parser.add_argument(
         "--outfile", help = "Filename for the output firmware.", required = True)
     parser.add_argument(
-        "--version", help = "Version number of this firmware.", required = True, type = int)
+        "--version", help = "Version number of this firmware.", default = 0, type = int)
     parser.add_argument(
-        "--message", help = "Release message for this firmware.", required = True)
+        "--message", help = "Release message for this firmware.", default = "default message", type = str)
     parser.add_argument(
-        "--secrets", help = "Path to the secrets json file.", required = False, default="bootloader/bin/secret_build_outputs.json")
+        "--secrets", help = "Path to the secrets text file.", default = REPO_ROOT/"secret_build_output.txt")
     parser.add_argument(
         "--debug", help = "Enable debugging messages.", action = "store_true"
     )

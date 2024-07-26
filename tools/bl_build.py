@@ -83,8 +83,8 @@ def save_to_secrets(ed25519_private_key,ed25519_public_key, aes_key):
         "ed25519_public_key": ed25519_public_key,
         "aes_key": aes_key
     }
-    os.chdir(os.path.join(BOOTLOADER_DIR,"bin/"))
-    with open("secret_build_outputs.json", "w") as f:
+    os.chdir(REPO_ROOT)
+    with open("secret_build_output.txt", "w") as f:
         json.dump(json_data, f, indent=4)
 
 if __name__ == "__main__":
