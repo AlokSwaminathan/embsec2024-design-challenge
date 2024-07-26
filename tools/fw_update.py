@@ -46,6 +46,7 @@ RESP_RESEND = b"\x01"
 RESP_DONE = b"\x02"
 RESP_ERROR = b"\x03"
 DEFAULT_FRAME_SIZE = 257
+STARTING_BOOT_STR = "Welcome to the BWSI Vehicle Update Service!\nSend \"U\" to update, and \"B\" to run the firmware."
 
 # Define the CRC32 configuration
 crc_config = Configuration(
@@ -138,10 +139,17 @@ def update(ser: Serial, infile:str, debug:bool, frame_size:int):
 
     # Send a zero length payload to tell the bootlader to finish writing it's page.
     ser.write(p16(0x0000, endian = 'little'))
-    resp:bytes = ser.read(1)  # Wait for a DONE from the bootloader
+    resp: bytes = ser.read(1)  # Wait for a DONE from the bootloader
     if resp != RESP_DONE:
-        raise RuntimeError(
-            "ERROR: Bootloader responded to zero length frame with {}".format(repr(resp)))
+        resp = ""
+        cur = 0
+        while True:
+          byte = ser.read(1)
+          resp += byte.decode('ascii')
+          if STARTING_BOOT_STR in resp:
+            break
+        print("ERROR: Bootloader responded to zero length frame with ERROR.\nError message is: {}".format(resp[:-len(STARTING_BOOT_STR)]))
+        exit(1)
     print(f"Wrote zero length frame (2 bytes) and finished writing firmware")
 
     return ser
