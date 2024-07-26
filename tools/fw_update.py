@@ -62,12 +62,17 @@ crc32 = Calculator(crc_config)
 running_total = 0
 FLASH_PAGESIZE = 1024
 
-def send_frame(ser, frame, debug = False):
+def send_frame(ser:serial, frame:bytes, debug = False):
     global running_total
   
     ser.write(p16(len(frame), endian = 'little'))  # Write the frame length
     
-    if (running_total % FLASH_PAGESIZE == 0 or running_total//FLASH_PAGESIZE != (running_total + len(frame))//FLASH_PAGESIZE):
+    # anticipates when bootloader will write data to flash
+    # waits for it to finish so there is no data loss
+    if (running_total % FLASH_PAGESIZE == 0 or 
+        running_total // FLASH_PAGESIZE != 
+        (running_total + len(frame)) // FLASH_PAGESIZE):
+      
       end_amt = (running_total+ len(frame)) % FLASH_PAGESIZE
       ser.write(frame[:-end_amt])
       time.sleep(0.1)
@@ -75,21 +80,19 @@ def send_frame(ser, frame, debug = False):
     else:
       ser.write(frame)
     
-    checksum = p32(crc32.checksum(frame),endian = 'little')
+    # check the cheksum
+    checksum:bytes = p32(crc32.checksum(frame), endian = 'little')
     
     print(f"Checksum: {checksum}") if debug else None
     ser.write(checksum)  # Write the frame checksum
 
-    if debug: #remember to remove later ❗❗❗❗❗❗
+    if debug:
         print(f"Frame size: {len(frame)}")
         print_hex(frame)
 
-    resp = ser.read(1)  # Wait for an OK from the bootloader
+    resp:bytes = ser.read(1)  # Wait for an OK from the bootloader
 
-    # Tenatively keep this line, idk why its here though
-    # time.sleep(0.1)
-
-        # Check if debugging is enabled
+    # Check if debugging is enabled
     if debug:
         print("Resp: {}".format(ord(resp)))
 
@@ -104,6 +107,7 @@ def send_frame(ser, frame, debug = False):
         return
     running_total += len(frame)
 
+# wait for bootloader to tell the program that it's ready
 def ready_bootloader():
     ser.write(b'U')
     print("Waiting for bootloader to enter update mode")
@@ -111,7 +115,8 @@ def ready_bootloader():
         print("Got non-U character from bootloader.")
     print("Bootloader is ready to recieve firmware.")
 
-def update(ser, infile, debug, frame_size):
+# function for actually flashing the firmware onto the board
+def update(ser:serial, infile:str, debug:bool, frame_size:int):
     running_total = 0
     
     # Open serial port. Set baudrate to 115200. Set timeout to 2 seconds.
@@ -133,7 +138,7 @@ def update(ser, infile, debug, frame_size):
 
     # Send a zero length payload to tell the bootlader to finish writing it's page.
     ser.write(p16(0x0000, endian = 'little'))
-    resp = ser.read(1)  # Wait for a DONE from the bootloader
+    resp:bytes = ser.read(1)  # Wait for a DONE from the bootloader
     if resp != RESP_DONE:
         raise RuntimeError(
             "ERROR: Bootloader responded to zero length frame with {}".format(repr(resp)))

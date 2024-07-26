@@ -59,6 +59,10 @@ int main(void) {
   uart_write_str(UART0, "Send \"U\" to update, and \"B\" to run the firmware.\n");
 
   int resp;
+
+  // wait until response given from user
+  // if 'B', boot the existing loaded firmware
+  // if 'U', cooperate with fw_update to update the current firmware
   while (1) {
     uint32_t instruction = uart_read(UART0, BLOCKING, &resp);
 
