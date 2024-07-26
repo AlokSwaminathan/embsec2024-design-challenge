@@ -29,16 +29,16 @@ If the bootloader responds with a 3, there has been an error and we should stop 
 import argparse
 from pwn import *
 import time
-import serial
+from serial import Serial
 import platform
 from crc import Calculator, Configuration
 
 from util import *
 
 if platform.system() == 'Darwin':
-    ser = serial.Serial("/dev/tty.usbmodem0E23AD551", 115200)
+    ser = Serial("/dev/tty.usbmodem0E23AD551", 115200)
 else:
-    ser = serial.Serial("/dev/ttyACM0", 115200)
+    ser = Serial("/dev/ttyACM0", 115200)
     
 # Define the bootloader response codes
 RESP_OK = b"\x00"
@@ -62,7 +62,7 @@ crc32 = Calculator(crc_config)
 running_total = 0
 FLASH_PAGESIZE = 1024
 
-def send_frame(ser:serial, frame:bytes, debug = False):
+def send_frame(ser: Serial, frame: bytes, debug = False):
     global running_total
   
     ser.write(p16(len(frame), endian = 'little'))  # Write the frame length
@@ -80,17 +80,17 @@ def send_frame(ser:serial, frame:bytes, debug = False):
     else:
       ser.write(frame)
     
-    # check the cheksum
-    checksum:bytes = p32(crc32.checksum(frame), endian = 'little')
+    # send the checksum
+    checksum: bytes = p32(crc32.checksum(frame), endian = 'little')
     
     print(f"Checksum: {checksum}") if debug else None
     ser.write(checksum)  # Write the frame checksum
 
     if debug:
         print(f"Frame size: {len(frame)}")
-        print_hex(frame)
+        print(f"Frame: {get_hex(frame)}")
 
-    resp:bytes = ser.read(1)  # Wait for an OK from the bootloader
+    resp: bytes = ser.read(1)  # Wait for an OK from the bootloader
 
     # Check if debugging is enabled
     if debug:
@@ -116,7 +116,7 @@ def ready_bootloader():
     print("Bootloader is ready to recieve firmware.")
 
 # function for actually flashing the firmware onto the board
-def update(ser:serial, infile:str, debug:bool, frame_size:int):
+def update(ser: Serial, infile:str, debug:bool, frame_size:int):
     running_total = 0
     
     # Open serial port. Set baudrate to 115200. Set timeout to 2 seconds.

@@ -11,8 +11,7 @@
 // Variables
 // Firmware Buffer
 unsigned char data[FLASH_PAGESIZE];
-// Padding amount for firmware
-uint8_t fw_padding_size;
+
 // Size of encrypted firmware
 uint32_t encrypted_fw_size;
 
@@ -31,7 +30,7 @@ void load_firmware(void) {
   uint32_t calc_crc = 0;
   uint32_t recv_crc = 0;
 
-  /* Loop here until you can get all your characters and stuff */
+  // Read frame till a 0 length
   while (1) {
     // Get two bytes for the length.
     rcv = uart_read(UART0, BLOCKING, &read);
@@ -47,7 +46,7 @@ void load_firmware(void) {
       break;
     }
 
-    // quit if frame length is more than the page size because that would cause issues
+    // quit if frame length is more than the page size so there is no chance of multiple flash programs in one frame
     if (frame_length > FLASH_PAGESIZE) {
       uart_write(UART0, ERROR);
       while (UARTBusy(UART0_BASE)) {
@@ -78,9 +77,12 @@ void load_firmware(void) {
         data_index = 0;
       }
 
-      // calculating checksum
+      // Read byte
       data[data_index] = uart_read(UART0, BLOCKING, &read);
+
+      // Dynamically calculate crc
       calc_crc = Crc32(calc_crc, (uint8_t *)(data + data_index), 1);
+
       data_index++;
       total_length++;
     }
@@ -104,11 +106,12 @@ void load_firmware(void) {
       continue;
     }
 
-    uart_write(UART0, OK);
     // Acknowledge that frame was successfully received
+    uart_write(UART0, OK);
     while (UARTBusy(UART0_BASE)) {
     };
   }
+
   // Program leftover frame data to flash
   if (data_index > 0) {
     int32_t res = program_flash((void *)page_addr, data, data_index);
@@ -158,7 +161,7 @@ void boot_firmware(void) {
   if (!__FW_IS_DEBUG) {
     uart_write_unsigned_short(UART0, *(uint16_t *)FW_VERSION_ADDR);
   } else {
-    uart_write_str(UART0, "0");
+    uart_write_str(UART0, "0 (DEBUG MODE)");
   }
   nl(UART0);
 
@@ -244,7 +247,7 @@ void verify_firmware() {
 
   // Find true signature behind padding
   uint8_t *signature = (uint8_t *)(FW_TEMP_BASE + encrypted_fw_size);
-  fw_padding_size = *(signature - 1);
+  uint8_t fw_padding_size = *(signature - 1);
   encrypted_fw_size -= fw_padding_size;
   signature -= fw_padding_size;
   signature -= ED25519_SIG_SIZE;
@@ -279,25 +282,32 @@ void verify_firmware() {
 void set_firmware_metadata() {
   uint16_t version = *(uint16_t *)(FW_TEMP_VERSION_ADDR);
   uint16_t size = *(uint16_t *)(FW_TEMP_SIZE_ADDR);
+
+  // If the release message size is greater than the MAX_MSG_LEN or is corrupted somehow, reset so unintentional memory won't be printed
   uint32_t fw_release_message_size = 1;
   for (uint8_t *addr = (uint8_t*)FW_RELEASE_MSG_ADDR; *addr != '\0'; addr++,fw_release_message_size++){
     if (fw_release_message_size >= MAX_MSG_LEN){
       SysCtlReset();
     }
   }
+
   uint8_t *sig = (uint8_t *)(FW_TEMP_BASE + INITIAL_METADATA_LEN + fw_release_message_size + size);
 
   bool is_debug = (version == 0);
 
+  // Clear all old values from data so they aren't written to flash
   memset(data, 0xFF, sizeof(data));
 
+  // Don't write a new version if debug mode
   if (is_debug) {
     memcpy(data, (uint8_t *)FW_VERSION_ADDR, FW_VERSION_LEN);
-    data[1023] = DEBUG_BYTE;
+    data[FLASH_PAGESIZE-1] = DEBUG_BYTE;
   } else {
     memcpy(data, (uint8_t *)FW_TEMP_BASE, FW_VERSION_LEN);
-    data[1023] = DEFAULT_BYTE;
+    data[FLASH_PAGESIZE-1] = DEFAULT_BYTE;
   }
+
+  // Copy rest of metadata to data
   memcpy(data + FW_VERSION_LEN, (uint8_t *)FW_TEMP_SIZE_ADDR, FW_SIZE_LEN);
   memcpy(data + INITIAL_METADATA_LEN, (uint8_t *)FW_TEMP_RELEASE_MSG_ADDR, fw_release_message_size);
   memcpy(data + (FW_SIG_ADDR - FW_VERSION_ADDR), sig, FW_SIG_LEN);
@@ -327,14 +337,19 @@ void check_firmware_version(void) {
 void finalize_firmware(void) {
   uint32_t firmware_size = (uint32_t)(*(uint16_t *)FW_TEMP_SIZE_ADDR);
 
+  // Calculate number of blocks to write and add an extra one if firmware isn't multiple of 1024
   uint32_t blocks = firmware_size / FLASH_PAGESIZE;
   if (firmware_size % FLASH_PAGESIZE != 0) {
     blocks++;
   }
+
   int ret = 0;
   for (uint32_t i = 0; i < blocks; i++) {
     ret += program_flash((void *)(FW_BASE + i * FLASH_PAGESIZE), (uint8_t *)(FW_TEMP_BASE + 4 + i * FLASH_PAGESIZE), FLASH_PAGESIZE);
   }
+  
+  // If the firmware was not properly moved to its bootable location then delete it all and quit
+  // If you don't delete there will be corrupt firmware
   if (ret != 0) {
     for (uint32_t i = 0; i < blocks; i++) {
       FlashErase(FW_BASE + i * FLASH_PAGESIZE);
@@ -344,6 +359,8 @@ void finalize_firmware(void) {
 }
 
 // Verify the firmware before booting
+// Dynamically computes the SHA512 Hash of metadata+firmware+release_message
+// Verifies that with the stored signature
 bool pre_boot_verify_firmware(void) {
   wc_Sha512 sha512;
   uint8_t hash[SHA512_DIGEST_SIZE];
@@ -373,6 +390,7 @@ bool pre_boot_verify_firmware(void) {
 
   ret |= wc_Sha512Final(&sha512, hash);
 
+  // If any SHA operations failed, then reset
   if (ret != 0) {
     SysCtlReset();
   }
@@ -392,7 +410,10 @@ bool pre_boot_verify_firmware(void) {
 
   int verified;
   ret = wc_ed25519ph_verify_hash((uint8_t *)FW_SIG_ADDR, ED25519_SIG_SIZE, hash, sizeof(hash), &verified, &ed25519_key, NULL, 0);
+
+  // Free the key
   wc_ed25519_free(&ed25519_key);
+
   if (ret != 0 || verified != 1) {
     return false;
   } else {
