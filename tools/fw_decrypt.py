@@ -83,7 +83,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--outfile", help = "Filename for the output decrypted firmware.", required = True)
     parser.add_argument(
-        "--secrets", help = "Path to the secrets json file.", required = True)
+        "--secrets", help = "Path to the secrets json file.", required = False, default="secret_build_output.txt")
     args = parser.parse_args()
 
     decrypt_firmware(infile = args.infile, 
