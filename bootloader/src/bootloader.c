@@ -74,8 +74,8 @@ int main(void) {
       decrypt_firmware();
       verify_firmware(); 
       check_firmware_version();
-      finalize_firmware();
       set_firmware_metadata();
+      finalize_firmware();
       uart_write_str(UART0, "Loaded new firmware.\n");
       nl(UART0);
       while (UARTBusy(UART0_BASE)) {

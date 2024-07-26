@@ -285,7 +285,7 @@ void set_firmware_metadata() {
 
   // If the release message size is greater than the MAX_MSG_LEN or is corrupted somehow, reset so unintentional memory won't be printed
   uint32_t fw_release_message_size = 1;
-  for (uint8_t *addr = (uint8_t*)FW_RELEASE_MSG_ADDR; *addr != '\0'; addr++,fw_release_message_size++){
+  for (uint8_t *addr = (uint8_t*)FW_TEMP_RELEASE_MSG_ADDR; *addr != '\0'; addr++,fw_release_message_size++){
     if (fw_release_message_size >= MAX_MSG_LEN){
       SysCtlReset();
     }
