@@ -84,7 +84,7 @@ def save_to_secrets(ed25519_private_key,ed25519_public_key, aes_key):
         "aes_key": aes_key
     }
     os.chdir(REPO_ROOT)
-    with open("secret_build_outputs.json", "w") as f:
+    with open("secret_build_outputs.txt", "w") as f:
         json.dump(json_data, f, indent=4)
 
 if __name__ == "__main__":
