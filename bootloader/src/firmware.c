@@ -38,40 +38,30 @@ void load_firmware(void) {
     rcv = uart_read(UART0, BLOCKING, &read);
     frame_length += ((int)rcv << 8);
 
-    // finish if the there is nothing left to load in
+    // finish if there is nothing left to load in
     if (frame_length == 0) {
-      uart_write(UART0, DONE);
-      while (UARTBusy(UART0_BASE)) {
-      };
       break;
     }
 
     // quit if frame length is more than the page size so there is no chance of multiple flash programs in one frame
     if (frame_length > FLASH_PAGESIZE) {
-      uart_write(UART0, ERROR);
-      while (UARTBusy(UART0_BASE)) {
-      };
-      SysCtlReset();
+      error(UART0, "Frame length cannot be more than the flash pagesize (1024)\n");
     }
 
-    //initialization for checksum
+    // initialization for checksum
     calc_crc = 0xFFFFFFFF;
 
     // Get the number of bytes specified
     for (int i = 0; i < frame_length; i++) {
       if (data_index >= FLASH_PAGESIZE) {
         if (page_addr - FW_TEMP_BASE >= MAX_CHUNK_NO * FLASH_PAGESIZE) {
-          uart_write(UART0, ERROR);
-          while (UARTBusy(UART0_BASE)) {
-          };
-          SysCtlReset();
+          error(UART0, "Protected firmware should be more than 32kb in size\n");
         }
         int32_t res = program_flash((void *)page_addr, data, data_index);
         if (res != 0) {
-          uart_write(UART0, ERROR);
-          SysCtlReset();
+          error(UART0, "Failed to program data to flash\n");
         }
-        
+
         // go to next page of flash memory
         page_addr += FLASH_PAGESIZE;
         data_index = 0;
@@ -116,10 +106,7 @@ void load_firmware(void) {
   if (data_index > 0) {
     int32_t res = program_flash((void *)page_addr, data, data_index);
     if (res != 0) {
-      uart_write(UART0, ERROR);
-      while (UARTBusy(UART0_BASE)) {
-      };
-      SysCtlReset();
+      error(UART0, "Failed to program data to flash\n");
     }
   }
 
@@ -127,8 +114,8 @@ void load_firmware(void) {
 }
 
 /*
-* Boots the current firmware stored in flash
-*/
+ * Boots the current firmware stored in flash
+ */
 void boot_firmware(void) {
   // Check if firmware loaded
   int fw_present = 0;
@@ -140,20 +127,13 @@ void boot_firmware(void) {
 
   // if no firmware, quit
   if (!fw_present) {
-    uart_write_str(UART0, "No firmware loaded.\n");
-    while (UARTBusy(UART0_BASE)) {
-    };
-    SysCtlReset();  // Reset device
-    return;
+    boot_error(UART0, "No firmware loaded.\n");
   }
 
   // Verify the firmware before booting
   bool verified = pre_boot_verify_firmware();
   if (!verified) {
-    uart_write_str(UART0, "Firmware verification failed.\n");
-    while (UARTBusy(UART0_BASE)) {
-    };
-    SysCtlReset();
+    boot_error(UART0, "Firmware verification failed.\n");
   }
 
   // Write the firmware version
@@ -181,8 +161,8 @@ void boot_firmware(void) {
       "BX R0\n\t");
 }
 /*
-* Decrypt the firmware loaded onto the board via fw_update.py
-*/
+ * Decrypt the firmware loaded onto the board via fw_update.py
+ */
 void decrypt_firmware() {
   uint8_t aes_key[AES_KEY_SIZE];
   uint32_t firmware_size = encrypted_fw_size - AES_IV_SIZE;
@@ -206,12 +186,12 @@ void decrypt_firmware() {
 
     // Decrypt the firmware
     if (wc_AesCbcDecrypt(&aes_cbc, data, (byte *)((uint32_t)block_addr + AES_IV_SIZE), BLOCK_SIZE) != 0) {
-      SysCtlReset();
+      error(UART0, "Failed to decrypt firmware\n");
     }
 
     // Write the decrypted firmware back to flash
     if (program_flash((void *)block_addr, data, BLOCK_SIZE) != 0) {
-      SysCtlReset();
+      error(UART0, "Failed to write decrypted firmware to flash\n");
     }
     block_addr += BLOCK_SIZE;
   }
@@ -224,12 +204,12 @@ void decrypt_firmware() {
 
     // Decrypt the firmware
     if (wc_AesCbcDecrypt(&aes_cbc, data, (byte *)((uint32_t)block_addr + AES_IV_SIZE), last_block_size) != 0) {
-      SysCtlReset();
+      error(UART0, "Failed to decrypt firmware\n");
     }
 
     // Write the decrypted firmware back to flash
     if (program_flash((void *)block_addr, data, last_block_size) != 0) {
-      SysCtlReset();
+      error(UART0, "Failed to write decrypted firmware to flash\n");
     }
   }
 
@@ -257,17 +237,17 @@ void verify_firmware() {
 
   // Initialize ED25519 public key
   if (wc_ed25519_init(&ed25519_key) != 0) {
-    SysCtlReset();
+    error(UART0, "Failed to initialize ed25519 key\n");
   }
   if (wc_ed25519_import_public((byte *)ed25519_public_key, ED25519_PUBLIC_KEY_SIZE, &ed25519_key) != 0) {
-    SysCtlReset();
+    error(UART0, "Failed to import ed25519 public key\n");
   }
 
   // Verify signature
   int verified;
   int ret = wc_ed25519ph_verify_msg(signature, ED25519_SIG_SIZE, (byte *)FW_TEMP_BASE, encrypted_fw_size - ED25519_SIG_SIZE, &verified, &ed25519_key, NULL, 0);
   if (ret != 0 || verified != 1) {
-    SysCtlReset();
+    error(UART0, "Verification of ed25519 signature failed\n");
   }
 
   // Free ED25519 key
@@ -285,9 +265,9 @@ void set_firmware_metadata() {
 
   // If the release message size is greater than the MAX_MSG_LEN or is corrupted somehow, reset so unintentional memory won't be printed
   uint32_t fw_release_message_size = 1;
-  for (uint8_t *addr = (uint8_t*)FW_TEMP_RELEASE_MSG_ADDR; *addr != '\0'; addr++,fw_release_message_size++){
-    if (fw_release_message_size >= MAX_MSG_LEN){
-      SysCtlReset();
+  for (uint8_t *addr = (uint8_t *)FW_TEMP_RELEASE_MSG_ADDR; *addr != '\0'; addr++, fw_release_message_size++) {
+    if (fw_release_message_size >= MAX_MSG_LEN) {
+      error(UART0, "Firmware release message is too large, max size is 255 bytes\n");
     }
   }
 
@@ -301,10 +281,10 @@ void set_firmware_metadata() {
   // Don't write a new version if debug mode
   if (is_debug) {
     memcpy(data, (uint8_t *)FW_VERSION_ADDR, FW_VERSION_LEN);
-    data[FLASH_PAGESIZE-1] = DEBUG_BYTE;
+    data[FLASH_PAGESIZE - 1] = DEBUG_BYTE;
   } else {
     memcpy(data, (uint8_t *)FW_TEMP_BASE, FW_VERSION_LEN);
-    data[FLASH_PAGESIZE-1] = DEFAULT_BYTE;
+    data[FLASH_PAGESIZE - 1] = DEFAULT_BYTE;
   }
 
   // Copy rest of metadata to data
@@ -314,7 +294,7 @@ void set_firmware_metadata() {
 
   // Write the metadata to permanent location in flash
   if (program_flash((void *)FW_VERSION_ADDR, data, FLASH_PAGESIZE) != 0) {
-    SysCtlReset();
+    error(UART0, "Failed to write firmware metadata to permanent location in flash\n");
   }
 }
 
@@ -328,7 +308,7 @@ void check_firmware_version(void) {
   if (ver == 0 || ver >= last_ver) {
     return;
   } else if (ver < last_ver) {
-    SysCtlReset();
+    error(UART0, "Firmware version is too old\n");
   }
 }
 
@@ -347,14 +327,14 @@ void finalize_firmware(void) {
   for (uint32_t i = 0; i < blocks; i++) {
     ret += program_flash((void *)(FW_BASE + i * FLASH_PAGESIZE), (uint8_t *)(FW_TEMP_BASE + 4 + i * FLASH_PAGESIZE), FLASH_PAGESIZE);
   }
-  
+
   // If the firmware was not properly moved to its bootable location then delete it all and quit
   // If you don't delete there will be corrupt firmware
   if (ret != 0) {
     for (uint32_t i = 0; i < blocks; i++) {
       FlashErase(FW_BASE + i * FLASH_PAGESIZE);
     }
-    SysCtlReset();
+    error(UART0, "Failed to copy firmware to proper location in memory");
   }
 }
 
@@ -367,7 +347,7 @@ bool pre_boot_verify_firmware(void) {
 
   // Initialize SHA512
   if (wc_InitSha512(&sha512) != 0) {
-    SysCtlReset();
+    boot_error(UART0, "Failed to initialize SHA512 struct\n");
   }
 
   int ret = 0;
@@ -392,7 +372,7 @@ bool pre_boot_verify_firmware(void) {
 
   // If any SHA operations failed, then reset
   if (ret != 0) {
-    SysCtlReset();
+    boot_error(UART0, "Failed to calculate SHA512 hash\n");
   }
 
   // Verify signature
@@ -402,10 +382,10 @@ bool pre_boot_verify_firmware(void) {
   EEPROMRead((uint32_t *)ed25519_public_key, ED25519_PUBLIC_KEY_EEPROM_ADDR, ED25519_PUBLIC_KEY_SIZE);
 
   if (wc_ed25519_init(&ed25519_key) != 0) {
-    SysCtlReset();
+    boot_error(UART0, "Failed to init ed25519 key\n");
   }
   if (wc_ed25519_import_public((byte *)ed25519_public_key, ED25519_PUBLIC_KEY_SIZE, &ed25519_key) != 0) {
-    SysCtlReset();
+    boot_error(UART0, "Failed to import ed25519 public key\n");
   }
 
   int verified;

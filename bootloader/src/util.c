@@ -51,19 +51,19 @@ long program_flash(void *page_addr, unsigned char *data, unsigned int data_len) 
 /*
  * Write an unsigned short to the UART.
  */
-void uart_write_unsigned_short(uint8_t uart, uint16_t num){
+void uart_write_unsigned_short(uint8_t uart, uint16_t num) {
   // 0 is the execption since it is all 0s
-  if (num == 0){
+  if (num == 0) {
     uart_write_str(uart, "0");
     return;
   }
 
-  // Longest unsigned short is 5 characters 
+  // Longest unsigned short is 5 characters
   char str[6] = "00000";
 
   // Fill in the string
   int curr = 4;
-  while (num > 0){
+  while (num > 0) {
     str[curr] = (char)((num % 10) + '0');
     num /= 10;
     curr--;
@@ -77,7 +77,6 @@ void uart_write_unsigned_short(uint8_t uart, uint16_t num){
 
   // Write the string
   uart_write_str(uart, start);
-
 }
 
  /* Converts arrays bytes into hexadecimal string representation 
@@ -113,4 +112,19 @@ void uart_write_hex_bytes(uint8_t uart, uint8_t *start, uint32_t len) {
     uart_write_str(uart, byte_str); // Write the hexadecimal representation to the UART
     uart_write_str(uart, " ");  // Spacing characters
   }
+}
+
+void error(uint8_t uart, char *error) {
+  uart_write(uart, ERROR);
+  uart_write_str(uart, error);
+  while (UARTBusy(UART0_BASE)) {
+  };
+  SysCtlReset();
+}
+
+void boot_error(uint8_t uart, char *error) {
+  uart_write_str(uart, error);
+  while (UARTBusy(UART0_BASE)) {
+  };
+  SysCtlReset();
 }
