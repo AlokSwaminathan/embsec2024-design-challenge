@@ -151,3 +151,4 @@ void boot_error(uint8_t uart, char *error) {
   while (UARTBusy(UART0_BASE)) {
   };
   SysCtlReset();
+}
