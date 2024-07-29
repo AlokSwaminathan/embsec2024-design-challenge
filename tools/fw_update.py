@@ -137,9 +137,10 @@ def update(ser: Serial, infile:str, debug:bool, frame_size:int):
 
     print("Done writing firmware.")
 
-    # Send a zero length payload to tell the bootlader to finish writing it's page.
+    # Send a zero length payload to tell the bootloader to finish writing it's page.
     ser.write(p16(0x0000, endian = 'little'))
     resp: bytes = ser.read(1)  # Wait for a DONE from the bootloader
+    print(resp)
     if resp != RESP_DONE:
         resp = ""
         cur = 0
@@ -148,7 +149,8 @@ def update(ser: Serial, infile:str, debug:bool, frame_size:int):
           resp += byte.decode('ascii')
           if STARTING_BOOT_STR in resp:
             break
-        print("ERROR: Bootloader responded to zero length frame with ERROR.\nError message is: {}".format(resp[:-len(STARTING_BOOT_STR)]))
+        print("ERROR: Bootloader responded to zero length frame with ERROR.")
+        print("Error message is: {}".format(resp[:-len(STARTING_BOOT_STR)]))
         exit(1)
     print(f"Wrote zero length frame (2 bytes) and finished writing firmware")
 
