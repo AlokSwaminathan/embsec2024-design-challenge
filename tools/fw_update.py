@@ -114,7 +114,7 @@ def ready_bootloader():
     print("Waiting for bootloader to enter update mode")
     while ser.read(1).decode('ascii') != 'U':
         print("Got non-U character from bootloader.")
-    print("Bootloader is ready to recieve firmware.")
+    print("Bootloader is ready to receive firmware.")
 
 # function for actually flashing the firmware onto the board
 def update(ser: Serial, infile:str, debug:bool, frame_size:int):
