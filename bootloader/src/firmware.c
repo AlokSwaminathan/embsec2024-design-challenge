@@ -86,9 +86,12 @@ void load_firmware(void) {
       while (UARTBusy(UART0_BASE)) {
       };
       // Request a resend
-      data_index -= frame_length;  // Remove the frame from the buffer
-      if (data_index < 0) {
-        data_index = 0;
+      if (data_index < frame_length){
+        data_index = (FLASH_PAGESIZE-(frame_length-data_index));
+        page_addr -= FLASH_PAGESIZE;
+        for (int i = 0; i < data_index; i++){
+          data[i] = *(uint8_t*)(page_addr+i);
+        }  
       }
       total_length -= frame_length;
       continue;
