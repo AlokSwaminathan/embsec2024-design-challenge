@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 
-// Function stubs
 void write_and_remove_secrets(void);
 
 #endif

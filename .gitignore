@@ -59,8 +59,7 @@ venv.bak/
 
 # Secrets and debug build articats
 bootloader/inc/secret_keys.h
-tools/secret_build_output.txt
-secret_build_output.txt
 *secret*.json
 !bootloader/inc/secrets.h
 *signed_firmware_blob.hex
+*secret_build_output*

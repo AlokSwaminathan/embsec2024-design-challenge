@@ -48,22 +48,45 @@ long program_flash(void *page_addr, unsigned char *data, unsigned int data_len) 
   }
 }
 
-/*
- * Write an unsigned short to the UART.
- */
-void uart_write_unsigned_short(uint8_t uart, uint16_t num){
+// Delay to allow time to connect GDB
+// green LED as visual indicator of when this function is running
+void debug_delay_led(void) {
+  // Enable the GPIO port that is used for the on-board LED.
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+
+  // Check if the peripheral access is enabled.
+  while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF)) {
+  }
+
+  // Enable the GPIO pin for the LED (PF3).  Set the direction as output, and
+  // enable the GPIO pin for digital function.
+  GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);
+
+  // Turn on the green LED
+  GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, GPIO_PIN_3);
+
+  // Wait
+  SysCtlDelay(SysCtlClockGet() * 2);
+
+  // Turn off the green LED
+  GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, 0x0);
+}
+
+// Used to write the version number
+// Mediocre implementation of itoa()
+void uart_write_unsigned_short(uint8_t uart, uint16_t num) {
   // 0 is the execption since it is all 0s
-  if (num == 0){
+  if (num == 0) {
     uart_write_str(uart, "0");
     return;
   }
 
-  // Longest unsigned short is 5 characters 
+  // Longest unsigned short is 5 characters
   char str[6] = "00000";
 
   // Fill in the string
   int curr = 4;
-  while (num > 0){
+  while (num > 0) {
     str[curr] = (char)((num % 10) + '0');
     num /= 10;
     curr--;
@@ -77,30 +100,55 @@ void uart_write_unsigned_short(uint8_t uart, uint16_t num){
 
   // Write the string
   uart_write_str(uart, start);
-
 }
 
+ /* Converts array of bytes into hexadecimal string representation 
+ and sends it over UART */
 void uart_write_hex_bytes(uint8_t uart, uint8_t *start, uint32_t len) {
   for (uint8_t *cursor = start; cursor < (start + len); cursor += 1) {
     uint8_t data = *((uint8_t *)cursor);
     uint8_t right_nibble = data & 0xF;
     uint8_t left_nibble = (data >> 4) & 0xF;
-    char byte_str[3];
+
+    char byte_str[3]; // Buffer holds the hexadecimal ASCII representation 
+
+   // Convert right nibble into ASCII representation
     if (right_nibble > 9) {
       right_nibble += 0x37;
     } else {
       right_nibble += 0x30;
     }
-    byte_str[1] = right_nibble;
+
+    byte_str[1] = right_nibble;  // Upper hex digit
+
+   // Convert left nibble into ASCII representation
     if (left_nibble > 9) {
       left_nibble += 0x37;
     } else {
       left_nibble += 0x30;
     }
-    byte_str[0] = left_nibble;
+
+    byte_str[0] = left_nibble; // Lower hex digit
     byte_str[2] = '\0';
 
     uart_write_str(uart, byte_str);
     uart_write_str(uart, " ");
   }
+}
+
+// Util to throw errors in firmware update process
+void error(uint8_t uart, char *error) {
+  uart_write(uart, ERROR);
+  uart_write_str(uart, error);
+  while (UARTBusy(UART0_BASE)) {
+  };
+  SysCtlReset();
+}
+
+// Util to throw errors in boot process
+void boot_error(uint8_t uart, char *error) {
+  uart_write_str(uart, error);
+  while (UARTBusy(UART0_BASE)) {
+  };
+  SysCtlReset();
 }

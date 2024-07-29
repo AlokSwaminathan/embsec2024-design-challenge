@@ -10,6 +10,7 @@
 
 // Import util functions
 #include "util.h"
+#include "firmware.h"
 
 // Hardware Imports
 #include "inc/hw_memmap.h"     // Peripheral Base Addresses
@@ -36,14 +37,14 @@
 // Checksum Imports
 #include "driverlib/sw_crc.h"
 
-// Firmware Constants
-#define METADATA_BASE 0x3FC00  // base address of version and firmware size in Flash
-#define FW_TEMP_BASE 0x30000   // temporary firmware storage location
-#define FW_BASE 0x20000        // final firmware storage location
-
 // FLASH Constants
 #define FLASH_PAGESIZE 1024
 #define FLASH_WRITESIZE 4
+
+// EEPROM Constants
+#define EEPROM_BLOCK_SIZE 0x40
+#define AES_KEY_EEPROM_ADDR EEPROM_BLOCK_SIZE
+#define ED25519_PUBLIC_KEY_EEPROM_ADDR EEPROM_BLOCK_SIZE*2  
 
 // Protocol Constants
 #define OK ((unsigned char)0x00)
@@ -55,39 +56,10 @@
 #define BOOT ((unsigned char)'B')
 
 // Data buffer sizes
-#define META_LEN 22  // Excludes message bytes
 #define IV_LEN 16
-#define MAX_MSG_LEN 1022
-#define BLOCK_SIZE FLASH_PAGESIZE
+#define MAX_MSG_LEN 256
 #define SIG_SIZE 256
-#define CHUNK_SIZE (BLOCK_SIZE + SIG_SIZE)
-
+#define BLOCK_SIZE FLASH_PAGESIZE
 #define MAX_CHUNK_NO 32  // 30KB firmware + padding
-
-// Return messages
-#define VERIFY_SUCCESS 0
-#define VERIFY_ERR 1
-
-#define FW_LOADED 0
-#define FW_ERROR 1
-
-#define FW_VERSION_ADDR 0x3FC00
-#define FW_RELEASE_MESSAGE_ADDR 0x3FC02
-#define FW_DEBUG_ADDR 0x3FFFF
-#define __FW_IS_DEBUG ((*((uint8_t *)FW_DEBUG_ADDR) & 0x01)==0x0)
-#define DEBUG_BYTE 0xFE
-#define DEFAULT_BYTE 0xFF
-
-#define VERSION_LEN 2
-#define FIRMWARE_SIZE_LEN 2
-#define INITIAL_METADATA_LEN 4
-
-typedef struct fw_meta_s {
-  uint16_t ver;              // Version of current fw being loaded
-  uint16_t min_ver;          // Miniumum fw version (not updated when debug fw loaded)
-  uint16_t chunks;           // Length of fw in 1kb chunks
-  uint16_t msgLen;           // Length of fw message in bytes
-  uint8_t msg[MAX_MSG_LEN];  // fw release message
-} fw_meta_st;
 
 #endif
