@@ -80,7 +80,7 @@ After the 0 length frame, the program expects a `DONE` and responds the same to 
 6. Moves the firmware binary to `FW_BASE`
    - If there is an error at this stage, it erases `FW_BASE` to ensure the data at `FW_BASE` isn't corrupted
 
-If an error is encountered, the `ERROR` byte and an error message are sent over `UART0` so `fw_update` can recieve it, then the bootloader resets
+If an error is encountered, the `ERROR` byte and an error message are sent over `UART0` so `fw_update` can receive it, then the bootloader resets
 
 #### Firmware booting process
 
@@ -169,7 +169,7 @@ sudo lm4flash ../bootloader/bin/bootloader.bin
 1. Enter the firmware directory and `make` the example firmware.
 
 ```
-cd ./firmware
+cd ../firmware
 make
 ```
 
