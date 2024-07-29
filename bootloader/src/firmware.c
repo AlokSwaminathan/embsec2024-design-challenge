@@ -149,9 +149,6 @@ void boot_firmware(void) {
   while (UARTBusy(UART0_BASE)) {
   };
 
-  // hides the key so it cannot be accessed until board reboot
-  EEPROMBlockHide(AES_KEY_EEPROM_ADDR / EEPROM_BLOCK_SIZE);
-
   // Boot the firmware, permanently leaves bootloader execution context until reboot
   __asm(
       "LDR R0,=0x20001\n\t"
@@ -166,7 +163,6 @@ void decrypt_firmware() {
 
   // Read the AES key from EEPROM
   EEPROMRead((uint32_t *)aes_key, AES_KEY_EEPROM_ADDR, AES_KEY_SIZE);
-  EEPROMBlockHide(AES_KEY_EEPROM_ADDR / EEPROM_BLOCK_SIZE);
 
   // Initalize the AES module
   wc_AesInit(&aes_cbc, NULL, INVALID_DEVID);

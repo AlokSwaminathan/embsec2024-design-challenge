@@ -140,7 +140,6 @@ def update(ser: Serial, infile:str, debug:bool, frame_size:int):
     # Send a zero length payload to tell the bootloader to finish writing it's page.
     ser.write(p16(0x0000, endian = 'little'))
     resp: bytes = ser.read(1)  # Wait for a DONE from the bootloader
-    print(resp)
     if resp != RESP_DONE:
         resp = ""
         cur = 0
