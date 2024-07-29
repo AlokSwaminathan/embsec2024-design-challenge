@@ -12,6 +12,8 @@
 
 // Stores secrets then just loops while getting input for booting or updating
 int main(void) {
+  disable_debug();
+
   write_and_remove_secrets();
 
   initialize_uarts();
@@ -52,3 +54,8 @@ int main(void) {
   }
 }
 
+
+void disable_debug(void){
+  HWREG(FLASH_BOOTCFG_DBG0) = 0;
+  HWREG(FLASH_BOOTCFG_DBG1) = 0;
+}
