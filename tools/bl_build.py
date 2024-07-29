@@ -78,7 +78,7 @@ def make_bootloader(ed25519_pub_key: bytes, aes_key: bytes) -> bool:
     return status == 0
 
 def save_to_secrets(ed25519_private_key: bytes,ed25519_public_key: bytes, aes_key: bytes) -> None:
-    # Build bootloader and add Ed25519 private/public key and AES key to JSON file
+    # Build bootloader and add Ed25519 private key and AES key to JSON file
     json_data = {
         "ed25519_private_key": ed25519_private_key,
         "aes_key": aes_key
